@@ -29,7 +29,7 @@ options(scipen = 4)  # Suppresses scientific notation
 
 housing.raw <- read.csv("AmesHousing.csv")
 
-
+summary(housing.raw)
 
 ```
 
