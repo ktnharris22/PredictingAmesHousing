@@ -21,6 +21,11 @@ library(MASS)    # For Boston data
 library(randomForest) # For random forests and bagging
 
 options(scipen = 4)  # Suppresses scientific notation
+
+
+library(tidyverse)
+library(knitr)
+library(GGally)
 ```
 
 ## Data Clean Up
@@ -29,13 +34,183 @@ options(scipen = 4)  # Suppresses scientific notation
 
 housing.raw <- read.csv("AmesHousing.csv")
 
-summary(housing.raw)
+# summary(housing.raw)
+
+length.data.raw <- nrow(housing.raw)
+
+housing.clean <- housing.raw
+
+#Turn NA entries in categorical variables into "None", so data isn't 
+#simply considered faulty/missing
+columns <- c(8,32,33,34,35,37,59,60,62,65,66,74,75,76)
+for (i in columns){
+  housing.clean[is.na(housing.clean[,i]),i] <- "None"
+}
+
+#calculate the number of NA's in non catetorical columns
+# for (j in 1: ncol(housing.clean)){
+#   a <- sum(is.na(housing.clean[,j]))
+#   print(paste(j,":",a))
+# }
+
+#Remove NA values from data
+housing.clean <- na.omit(housing.clean)
+
+housing.processed <- housing.clean %>%
+  mutate(Bsmt.Cond = factor(Bsmt.Cond, levels = c("Ex", "Gd", "TA", "Fa", "Po", "None"))) %>%
+  mutate(Bsmt.Exposure = factor(Bsmt.Exposure, levels = c("Ex", "Gd", "TA", "Fa", "Po", "None"))) %>%
+  mutate(Fireplace.Qu = factor(Fireplace.Qu, levels = c("Ex", "Gd", "TA", "Fa", "Po", "None"))) %>%
+  mutate(Garage.Qual = factor(Garage.Qual, levels = c("Ex", "Gd", "TA", "Fa", "Po", "None"))) %>%
+  mutate(Bsmt.Qual = factor(Bsmt.Qual, levels = c("Ex", "Gd", "TA", "Fa", "Po", "None"))) %>%
+  mutate(BsmtFin.Type.1 = factor(BsmtFin.Type.1, levels = c("GLQ", "ALQ", "BLQ", "REC", "LwQ", "UNF", "None"))) %>%
+  mutate(BsmtFin.Type.2 = factor(BsmtFin.Type.2, levels = c("GLQ", "ALQ", "BLQ", "REC", "LwQ", "UNF", "None"))) %>%
+  mutate(Heating.QC = factor(Heating.QC, levels = c("Ex", "Gd", "TA", "Fa", "Po"))) %>%
+  mutate(Kitchen.Qual = factor(Kitchen.Qual, levels = c("Ex", "Gd", "TA", "Fa", "Po"))) %>%
+  mutate(Exter.Qual = factor(Exter.Qual, levels = c("Ex", "Gd", "TA", "Fa", "Po"))) %>%
+  mutate(Exter.Cond = factor(Exter.Cond, levels = c("Ex", "Gd", "TA", "Fa", "Po"))) %>%
+  mutate(Functional = factor(Functional, levels = c("Typ", "Min1", "Min2", "Mod", "Maj1", "Maj2", "Sev", "Sal"))) %>%
+  mutate(Garage.Finish = factor(Garage.Finish, levels = c("Fin", "RFn", "Unf", "None"))) %>%
+  mutate(Pool.QC = factor(Pool.QC, levels = c("Ex", "Gd", "TA", "Fa", "None"))) %>%
+  mutate(Lot.Shape = factor(Lot.Shape, levels = c("Reg","IR1","IR2","IR3"))) %>%
+  mutate(Land.Slope = factor(Land.Slope, levels = c("Gtl","Mod","Sev"))) %>%
+  mutate(Overall.Qual = factor(Overall.Qual, levels = c(10, 9, 8, 7, 6, 5, 4, 3, 2, 1))) %>%
+  mutate(Overall.Cond = factor(Overall.Cond, levels = c(10, 9, 8, 7, 6, 5, 4, 3, 2, 1))) %>%
+  mutate(MS.SubClass = factor(MS.SubClass))
+
 
 ```
 
-## Initial Data Summary
+# only 198 entries have data for paved 
+
+# Replaced all NA's with "NONE", so as to ensure that R counts it as a category
+
+# Created levels for all data with c("Ex", "Gd", "TA", "Fa", "Po", "None"): BsmtCond, BsmtExposure, FireplaceQu, GarageQual, GarageCond, BsmtQual
+- Corr:
+- GarageQual, GarageCond
+
+# Created levels for all data with  c("GLQ", "ALQ", "BLQ", "REC", "LwQ", "UNF", "None"): BsmtFinType1, BsmtFinType2
+
+#?Need to look at BsmtFinType1, BsmtFinType2 relationship, because it seems that unf/0 is for houses with one basement area
+
+# Created levels for all data with c("Ex", "Gd", "TA", "Fa", "Po"): HeatingQC, KitchenQual, ExterQual, ExterCond
+
+# Created levels for all data with  c("Typ", "Min1", "Min2", "Mod", "Maj1", "Maj2", "Sev", "Sal"): Functional
+
+# Created levels for all data with  c("Fin", "RFn", "Unf", "None"): GarageFinish
+
+# Created levels for all data with  c("Ex", "Gd", "TA", "Fa", "None"): PoolQC
+
+# Created levels for all data with  c("Reg","IR1","IR2","IR3"): LotShape
+
+# Created levels for all data with  c("Gtl","Mod","Sev"): LandSlope
+
+# Created levels for all data with  c(10, 9, 8, 7, 6, 5, 4, 3, 2, 1): OverallQual, OverallCond
+
+## Initial Data Plots and Summaries
 
 ```{r}
 
+## add time-series data 
+
+## Dig a bit deeper into any areas that show trends
+
+
+#Sale Condition
+
+ggplot(data = housing.processed, aes(x = Sale.Condition, y = SalePrice)) +
+  geom_boxplot()
+
+#OverallCond
+
+ggplot(data = housing.processed, aes(x = Overall.Cond, y = SalePrice)) +
+  geom_boxplot()
+
+#OverallQual
+
+ggplot(data = housing.processed, aes(x = Overall.Qual, y = SalePrice)) +
+  geom_boxplot()
+
+#Functional
+ggplot(data = housing.processed, aes(x = Functional, y = SalePrice)) +
+  geom_boxplot()
+
+#Kitchen Quality
+
+ggplot(data = housing.processed, aes(x = Kitchen.Qual, y = SalePrice)) +
+  geom_boxplot()
+
+#BsmtCond
+
+ggplot(data = housing.processed, aes(x = Bsmt.Cond, y = SalePrice)) +
+  geom_boxplot()
+
+#Extercond
+
+ggplot(data = housing.processed, aes(x = Exter.Cond, y = SalePrice)) +
+  geom_boxplot()
+
+#HouseStyle
+ggplot(data = housing.processed, aes(x = House.Style, y = SalePrice)) +
+  geom_boxplot()
+
+#BldgType
+
+ggplot(data = housing.processed, aes(x = Bldg.Type, y = SalePrice)) +
+  geom_boxplot()
+
+#Neighborhood
+
+ggplot(data = housing.processed, aes(x = Neighborhood, y = SalePrice)) +
+  geom_boxplot()
+
+#MSSubclass
+ggplot(data = housing.processed, aes(x = MS.SubClass, y = SalePrice)) +
+  geom_boxplot()
+
+#Sale Type
+
+ggplot(data = housing.processed, aes(x = Sale.Type, y = SalePrice)) +
+  geom_boxplot()
+
+```
+#Initial regression analysis
+```{r}
+#Geo-Spactial Characteristics
+
+geo.char <- c("Lot.Area","Lot.Shape","Land.Contour","Lot.Config", "Land.Slope",
+              "Land.Contour","Neighborhood","Condition.1","Condition.2",
+              "X1st.Flr.SF","X2nd.Flr.SF","Garage.Area","Wood.Deck.SF",
+              "Open.Porch.SF","Pool.Area")
+  
+#Features
+  
+hsg.features <- c("Utilities", "Bldg.Type","House.Style","Roof.Style",
+                  "Roof.Matl","Exterior.1st","Exterior.2nd","Foundation",
+                  "Bsmt.Unf.SF","Total.Bsmt.SF","Heating","Heating.QC",
+                  "Central.Air","Electrical","Fireplaces","Garage.Type",
+                  "Garage.Finish","Garage.Area","Paved.Drive","Misc.Feature",
+                  "Misc.Val")
+
+#Quality
+
+hsg.quality <- c("Overall.Qual","Overall.Cond","Exter.Qual","Exter.Cond",
+                 "Bsmt.Cond","Bsmt.Qual","Bsmt.Exposure","BsmtFin.Type.1",
+                 "BsmtFin.Type.2","Heating.QC","Fireplace.Qu","Garage.Finish",
+                 "Garage.Qual","Garage.Cond","Fence","Misc.Val","Pool.QC",
+                 "Sale.Condition")
+
+#Sales Criteria
+
+sales.crit <- c("MS.SubClass", "MS.Zoning", "Year.Built", "Year.Remod.Add",
+                "Mo.Sold", "Yr.Sold", "Sale.Type")
+  
+  
+ggpairs(data = housing.processed[,geo.char[1:5]])
+
+ggpairs(data = housing.processed[,hsg.features[1:10]])
+
+ggpairs(data = housing.processed[,hsg.quality])
+
+ggpairs(data = housing.processed[,sales.crit])
 
 ```
