@@ -19,6 +19,7 @@ library(rpart)   # For nicer tree fitting
 library(partykit)  # For nicer tree plotting
 library(MASS)    # For Boston data
 library(randomForest) # For random forests and bagging
+library(ggcorrplot)
 
 options(scipen = 4)  # Suppresses scientific notation
 
@@ -128,9 +129,41 @@ housing.processed <- housing.clean %>%
   mutate(Land.Slope = factor(Land.Slope, levels = c("Gtl","Mod","Sev"))) %>%
   mutate(Overall.Qual = factor(Overall.Qual, levels = c(10, 9, 8, 7, 6, 5, 4, 3, 2, 1))) %>%
   mutate(Overall.Cond = factor(Overall.Cond, levels = c(10, 9, 8, 7, 6, 5, 4, 3, 2, 1))) %>%
-  mutate(MS.SubClass = factor(MS.SubClass))
+  mutate(MS.SubClass = recode_factor(MS.SubClass, 
+                                     '20' = "1-STORY 1946N",
+                                     '30' = "1-STORY 1945O",
+                                     '40' = "1-STORY UF.ATTIC.A",
+                                     '50' = "1.5-STORY F.ATTIC.A",
+                                     '60' = "2-STORY 1946N",
+                                     '70' = "2-STORY 1945O",
+                                     '75' = "2.5-STORY A",
+                                     '80' = "MULTILVL",
+                                     '85' = "SPLIT FOYER",
+                                     '90' = "DUPLEX.A",
+                                     '120' = "1-STORY-PUD 1946N",
+                                     '150' = "1.5-STORY-PUD.A",
+                                     '160' = "2-STORY-PUD 1946N",
+                                     '180' = "PUD-MULTILVL",
+                                     '190' = "2 FAM CONV.A"))
 
+#terminology used is N for New, O for Old, A for All
 
+        #20	1-STORY 1946 & NEWER ALL STYLES
+        #30	1-STORY 1945 & OLDER
+        #40	1-STORY W/FINISHED ATTIC ALL AGES
+        #45	1-1/2 STORY - UNFINISHED ALL AGES
+        #50	1-1/2 STORY FINISHED ALL AGES
+        #60	2-STORY 1946 & NEWER
+        #70	2-STORY 1945 & OLDER
+        #75	2-1/2 STORY ALL AGES
+        #80	SPLIT OR MULTI-LEVEL
+        #85	SPLIT FOYER
+        #90	DUPLEX - ALL STYLES AND AGES
+       #120	1-STORY PUD (Planned Unit Development) - 1946 & NEWER
+       #150	1-1/2 STORY PUD - ALL AGES
+       #160	2-STORY PUD - 1946 & NEWER
+       #180	PUD - MULTILEVEL - INCL SPLIT LEV/FOYER
+       #190	2 FAMILY CONVERSION - ALL STYLES AND AGES
 ```
 
 # only 198 entries have data for paved 
@@ -212,7 +245,7 @@ ggplot(data = housing.processed, aes(x =SalePrice , y = Neighborhood)) +
 <font color="#800000">
 StoneBr, NridgeHt and NoRidge seem to be the more pricier neighborhoods. Our intuition was spot on: the sales price varies with different neighborhoods, so we should definitely include this in our model as a predictor.
 
-Other characteristic that stands out is overall quality of the house, kitchen quality . We expect there to be a strong linear relationship between quality and prices. The poorer the quality, the lower the price.
+Other characteristics that stands out is overall quality of the house and kitchen quality . We expect there to be a strong linear relationship between quality and prices. The poorer the quality, the lower the price. These can be strong predictors in our model.
 </font>
 
 ```{r}
@@ -224,59 +257,11 @@ qual.plot
 qual.plot2 <- ggplot(housing.processed, aes(Kitchen.Qual,SalePrice)) + geom_jitter(alpha = 0.5, color = "blue")
 qual.plot2
 ```
-
-
-<font color="#800000">
-For the purpose of making out model leaner, we will explore variables that might exhibit high collinearity. Intuitively, it looks like there are some extra variables which may not be necessary. For example, our expectation is that Lot.Frontage and Lot.Area will be highly correlated. Similarly, Bedroom.AbvGr and TotRms.AbvGrd might follow a similar trend. We look further into the correlations between the numeric variables:
-</font>
-
-
 ```{r}
-# create a subset of variable names
-myvars <- c("Lot.Frontage","Lot.Area", "Year.Built", "Year.Remod.Add", "Mas.Vnr.Area","Total.Bsmt.SF", "Bsmt.Unf.SF", "BsmtFin.SF.2","BsmtFin.SF.1", "X1st.Flr.SF","X2nd.Flr.SF", "Low.Qual.Fin.SF","Gr.Liv.Area", "Bsmt.Full.Bath","Bsmt.Half.Bath", "Full.Bath", "Half.Bath", "Bedroom.AbvGr","Kitchen.AbvGr", "Fireplaces", "TotRms.AbvGrd","Garage.Yr.Blt","Garage.Cars", "Garage.Area", "Wood.Deck.SF",	"Open.Porch.SF","Enclosed.Porch", "X3Ssn.Porch",	"Screen.Porch", "Pool.Area", "SalePrice", "Mo.Sold","Yr.Sold")
-
-sub.house <- housing.processed[myvars]
-
-#Create a data frame for variables that are correlated 
-corr.sub.house <- round(cor(sub.house),2)
-corr.table <- as.data.frame(as.table(corr.sub.house))
-names(corr.table)[1] <- "Variable 1"
-names(corr.table)[2] <- "Variable 2"
-
-#Find the variables which are strongly correlated as per rule of 0.6
-corr.subset <- subset(corr.table,  Freq > 0.6 | Freq < -0.6) 
-corr.subset
-
-
-myvars2 <- c("Lot.Frontage","Lot.Area", "Year.Built", "Year.Remod.Add", "Mas.Vnr.Area","Total.Bsmt.SF", "Bsmt.Unf.SF", "BsmtFin.SF.2","BsmtFin.SF.1", "X1st.Flr.SF","X2nd.Flr.SF", "Low.Qual.Fin.SF","Gr.Liv.Area", "Bsmt.Full.Bath","Bsmt.Half.Bath", "Full.Bath", "Half.Bath", "Bedroom.AbvGr","Kitchen.AbvGr", "Fireplaces", "TotRms.AbvGrd","Garage.Yr.Blt","Garage.Cars", "Garage.Area", "Wood.Deck.SF",	"Open.Porch.SF","Enclosed.Porch", "X3Ssn.Porch",	"Screen.Porch", "Pool.Area", "SalePrice", "Mo.Sold","Yr.Sold")
-
-
-#corr.sub.house <- round(cor(sub.house),2)
-
-# Use ggcorrplot to graph correlation. 
-#ggcorrplot(corr.sub.house, hc.order = TRUE, outline.color = 'white', lab = TRUE, title = "Correlation between Variables in Housing Dataset", legend.title = "Correlation")
-
-# Scatter matrix
-#pairs(sub.house)
+#MSSubclass
+ggplot(data = housing.processed, aes(x = SalePrice, y = MS.SubClass)) +
+  geom_boxplot()
 ```
-70	Year.Remod.Add	Year.Built	0.63	
-88	Garage.Yr.Blt	Year.Built	0.84	
-121	Garage.Yr.Blt	Year.Remod.Add	0.66	
-175	X1st.Flr.SF	Total.Bsmt.SF	0.83	
-196	SalePrice	Total.Bsmt.SF	0.65	
-278	Bsmt.Full.Bath	BsmtFin.SF.1	0.64	
-328	SalePrice	X1st.Flr.SF	0.64
-343	Gr.Liv.Area	X2nd.Flr.SF	0.64	
-347	Half.Bath	X2nd.Flr.SF	0.61	
-412	Full.Bath	Gr.Liv.Area	0.62	
-417	TotRms.AbvGrd	Gr.Liv.Area	0.81	
-427	SalePrice	Gr.Liv.Area	0.71
-582	TotRms.AbvGrd	Bedroom.AbvGr	0.65	
-673	Gr.Liv.Area	TotRms.AbvGrd	0.81	
-539	X2nd.Flr.SF	Half.Bath	0.61	
-782	Garage.Cars	Garage.Area	0.85	
-
-
 
 ```{r}
 housing.processed %>% ggplot(aes(x = Yr.Sold, y= SalePrice/1000)) + geom_jitter() + stat_smooth(method = "lm") + ggtitle("Housing Prices Between 2006-2010") + xlab("Year Sold") + ylab("Price in $1000")
@@ -301,14 +286,9 @@ year.plot
 Just as we expected, we see that newer houses tend to be more expensive in the dataset. However, there are a few outliers which exhibit the opposite: very old houses appear to increase in price. Perhaps these could be considered as "old century homes" built in years prior to 1920 which would no longer correspond to a price decrease with age. We would have to re-evalute this in our prediction model. 
 </font>
 
-```{r}
-# explore house-style and models dwelling, MS.subclass.
-```
 
 ```{r}
 ## Dig a bit deeper into any areas that show trends
-
-
 #Sale Condition
 
 ggplot(data = housing.processed, aes(x = Sale.Condition, y = SalePrice)) +
@@ -353,10 +333,6 @@ ggplot(data = housing.processed, aes(x = Bldg.Type, y = SalePrice)) +
   geom_boxplot()
 
 
-#MSSubclass
-ggplot(data = housing.processed, aes(x = MS.SubClass, y = SalePrice)) +
-  geom_boxplot()
-
 #Sale Type
 
 ggplot(data = housing.processed, aes(x = Sale.Type, y = SalePrice)) +
@@ -364,17 +340,40 @@ ggplot(data = housing.processed, aes(x = Sale.Type, y = SalePrice)) +
 
 ```
 
-#Initial regression analysis
-```{r}
-#Geo-Spatial Characteristics
+<font color="#800000">
+For the purpose of making out model leaner, we will explore variables that might exhibit high collinearity. Intuitively, it looks like there are some extra variables which may not be necessary. For example, our expectation is that Lot.Frontage and Lot.Area will be highly correlated. Similarly, Bedroom.AbvGr and TotRms.AbvGrd might follow a similar trend. We look further into the correlations between the numeric variables:
+</font>
 
-geo.char <- c("Lot.Area","Lot.Shape","Land.Contour","Lot.Config", "Land.Slope",
-              "Land.Contour","Neighborhood","Condition.1","Condition.2",
-              "X1st.Flr.SF","X2nd.Flr.SF","Garage.Area","Wood.Deck.SF",
-              "Open.Porch.SF","Pool.Area")
-  
+
+```{r}
+# create a subset of variable names
+myvars <- c("Lot.Frontage","Lot.Area", "Year.Built", "Year.Remod.Add", "Mas.Vnr.Area","Total.Bsmt.SF", "Bsmt.Unf.SF", "BsmtFin.SF.2","BsmtFin.SF.1", "X1st.Flr.SF","X2nd.Flr.SF", "Low.Qual.Fin.SF","Gr.Liv.Area", "Bsmt.Full.Bath","Bsmt.Half.Bath", "Full.Bath", "Half.Bath", "Bedroom.AbvGr","Kitchen.AbvGr", "Fireplaces", "TotRms.AbvGrd","Garage.Yr.Blt","Garage.Cars", "Garage.Area", "Wood.Deck.SF",	"Open.Porch.SF","Enclosed.Porch", "X3Ssn.Porch",	"Screen.Porch", "Pool.Area", "SalePrice", "Mo.Sold","Yr.Sold")
+
+sub.house <- housing.processed[myvars]
+
+#Create a data frame for variables that are correlated 
+corr.sub.house <- round(cor(sub.house),2)
+corr.table <- as.data.frame(as.table(corr.sub.house))
+names(corr.table)[1] <- "Variable 1"
+names(corr.table)[2] <- "Variable 2"
+
+#Find the variables which are strongly correlated as per rule of 0.6
+corr.subset <- subset(corr.table,  Freq > 0.6 | Freq < -0.6) 
+corr.subset
+
+```
+
+```{r}
+categories.housing
+```
+
+
+<font color="#800000">
+Based on intuition, we split the variables into sub-categories to explore collinearity. 
+</font>
+
+```{r}
 #Features
-  
 hsg.features <- c("Utilities", "Bldg.Type","House.Style","Roof.Style",
                   "Roof.Matl","Exterior.1st","Exterior.2nd","Foundation",
                   "Bsmt.Unf.SF","Total.Bsmt.SF","Heating","Heating.QC",
@@ -383,7 +382,6 @@ hsg.features <- c("Utilities", "Bldg.Type","House.Style","Roof.Style",
                   "Misc.Val")
 
 #Quality
-
 hsg.quality <- c("Overall.Qual","Overall.Cond","Exter.Qual","Exter.Cond",
                  "Bsmt.Cond","Bsmt.Qual","Bsmt.Exposure","BsmtFin.Type.1",
                  "BsmtFin.Type.2","Heating.QC","Fireplace.Qu","Garage.Finish",
@@ -391,19 +389,56 @@ hsg.quality <- c("Overall.Qual","Overall.Cond","Exter.Qual","Exter.Cond",
                  "Sale.Condition")
 
 #Sales Criteria
-
 sales.crit <- c("MS.SubClass", "MS.Zoning", "Year.Built", "Year.Remod.Add",
                 "Mo.Sold", "Yr.Sold", "Sale.Type")
+
+# Use the following characterstics to make correlation plots and pick out the most relevant 
+#Geo-Spatial Characteristics
+geo.char <- c("Lot.Area","Lot.Frontage","Mas.Vnr.Area","X1st.Flr.SF","X2nd.Flr.SF","Garage.Area","Wood.Deck.SF",
+              "Open.Porch.SF","Pool.Area", "Low.Qual.Fin.SF","Gr.Liv.Area")
   
-  
-ggpairs(data = housing.processed[,geo.char[1:5]])
 
-ggpairs(data = housing.processed[,hsg.features[1:10]])
+#Basement/Bath Redundancies
+bb.crit <- c("BsmtFin.SF.1", "BsmtFin.SF.2", "Bsmt.Unf.SF", "Total.Bsmt.SF", 
+             "Bsmt.Full.Bath", "Bsmt.Half.Bath", "Full.Bath","Half.Bath")
 
-ggpairs(data = housing.processed[,hsg.quality])
+#Above Ground
+ag.crit <- c("Bedroom.AbvGr", "Kitchen.AbvGr", "TotRms.AbvGrd", "Gr.Liv.Area")
 
-ggpairs(data = housing.processed[,sales.crit])
+#Deck/Porch
+dp.crit <- c("Wood.Deck.SF", "Open.Porch.SF", "Enclosed.Porch","X3Ssn.Porch","Screen.Porch")
 
+
+sub.house.geo <- housing.processed[geo.char]
+corr.sub.house.geo <- round(cor(sub.house.geo),2)
+
+sub.house.bb.crit <- housing.processed[bb.crit]
+corr.sub.house.bb <- round(cor(sub.house.bb.crit),2)
+
+sub.house.ag.crit <- housing.processed[ag.crit]
+corr.sub.house.ag <- round(cor(sub.house.ag.crit),2)
+
+sub.house.dp.crit <- housing.processed[dp.crit]
+corr.sub.house.dp <- round(cor(sub.house.dp.crit),2)
+
+```
+
+```{r, fig.width = 15}
+#Use ggcorrplot to graph correlation. 
+ggcorrplot(corr.sub.house.geo, hc.order = TRUE, outline.color = 'white', lab = TRUE, title = "Correlation between Geo-Spatial Characteristics in Housing Dataset", legend.title = "Correlation")
+```
+
+```{r, fig.width = 15}
+#Use ggcorrplot to graph correlation. 
+ggcorrplot(corr.sub.house.bb, hc.order = TRUE, outline.color = 'white', lab = TRUE, title = "Correlation between Basement-Bath Characteristics in Housing Dataset", legend.title = "Correlation")
+```
+```{r, fig.width = 15}
+#Use ggcorrplot to graph correlation. 
+ggcorrplot(corr.sub.house.ag, hc.order = TRUE, outline.color = 'white', lab = TRUE, title = "Correlation between Basement-Bath Characteristics in Housing Dataset", legend.title = "Correlation")
+```
+```{r, fig.width = 15}
+#Use ggcorrplot to graph correlation. 
+ggcorrplot(corr.sub.house.dp, hc.order = TRUE, outline.color = 'white', lab = TRUE, title = "Correlation between Basement-Bath Characteristics in Housing Dataset", legend.title = "Correlation")
 ```
 
 #Inital Linear Regressions 
@@ -412,27 +447,31 @@ ggpairs(data = housing.processed[,sales.crit])
 As an initial simple model we will consider a few variables to be important determinants of the price of a property:
 
 - Overall.Qual: The quality rating (from 1 to 10).
+- Kitchen.Qual
 - Neighborhood: Neighborhoods vary across location as per our EDA.
+- MS.SubClass
 - MS.Zoning.
-- Garage.Area
 - Lot.Area
 - Year.Built 
-- Kitchen.Qual
-- BsmtFin.SF.1
+- Total.Bsmt.SF
 - Gr.Liv.Area
+- Open.Porch.SF
+- Pool.Area
 </font>
 
 ```{r}
 model.fit.1 <- lm(SalePrice ~
                  Overall.Qual +
+                Kitchen.Qual +
                  Neighborhood +
+                 MS.SubClass +
                  MS.Zoning +
-                Garage.Area +
                 Lot.Area +
                  Year.Built +
-                 Kitchen.Qual +
-                 BsmtFin.SF.1 + 
-                 Gr.Liv.Area,
+                 Total.Bsmt.SF + 
+                 Gr.Liv.Area +
+                Open.Porch.SF +
+                Pool.Area,
                data = housing.processed)
 summary(model.fit.1)
 ```
