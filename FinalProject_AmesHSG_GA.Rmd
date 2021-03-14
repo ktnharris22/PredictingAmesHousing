@@ -1,6 +1,6 @@
 ---
 title: "FinalProject_AmesHSG"
-author: "Jaih"
+author: "Jaih, Katie, Andy, Anum"
 date: "3/12/2021"
 output: html_document
 ---
@@ -28,14 +28,67 @@ library(knitr)
 library(GGally)
 ```
 
-## Data Clean Up
+## Section 1: Data Clean-Up and Exploration
+
+<font color="#800000">
+We are going to examine the housing data-set to pick out some key characteristics, trends and summaries for our model evaluations with the eventual goal of developing a sales price prediction model that can be used improve  price listings and clients advice on home improvement projects. The following section will aim to clean-up the data for our use and identify general trends in sales prices across time, neighborhood, and other key home characteristics. 
+</font>
+
 ```{r}
 #read in data
-
 housing.raw <- read.csv("AmesHousing.csv")
+```
 
-# summary(housing.raw)
+```{r}
+#summary(housing.raw)
+glimpse(housing.raw)
+#Checking the class of each variable
+categories.housing <- data.frame(variabletype=sapply(housing.raw,class))
+categories.housing
+```
+```{r}
+numeric_variables <- table(categories.housing[categories.housing['variabletype'] == 'integer'])
+numeric_variables
+categorical_variables <- table(categories.housing[categories.housing['variabletype'] == 'character'])
+categorical_variables
+```
 
+
+```{r}
+#Checking the number of NA values in the data-set to evaluate clean-up
+sum(is.na(housing.raw))
+```
+
+<font color="#800000">
+On first glance, we see a few salient features within the dataset with 39 integer variables which include: 
+-MS.Subclass
+-Lot.Frontage
+- Lot.Area
+- Overall.Qual
+- Overall.Cond
+- Year.Built
+- Year.Remod.Add
+- Full.Bath				
+- Half.Bath		
+- Bedroom.AbvGr			
+- Kitchen.AbvGr
+- TotRms.AbvGrd
+- Mo.Sold			
+- Yr.Sold	
+- SalePrice	
+
+We see 43 character variables which include: 
+- MS.Zoning
+- Utilities
+- Neighborhood
+- Heating
+- Central.Air
+- Kitchen.Qual
+
+The dataset also has `sum(is.na(housing.raw))` NA values. However, in most cases this corresponds to the characteristic not being present in the house; therefore, we will proceed to change these 'NA' values to "None" where it makes sense to not lose any relevant data. e.g --> Pool.QC
+</font>
+
+```{r}
 length.data.raw <- nrow(housing.raw)
 
 housing.clean <- housing.raw
@@ -106,12 +159,153 @@ housing.processed <- housing.clean %>%
 
 # Created levels for all data with  c(10, 9, 8, 7, 6, 5, 4, 3, 2, 1): OverallQual, OverallCond
 
-## Initial Data Plots and Summaries
+# Initial Data Plots and Summaries
+
+<font color="#800000">
+Now that we've done some cleaning; let's go on to explore our main dependent variable: SalePrice. 
+</font>
+
+```{r, warning = FALSE}
+summary(housing.processed$SalePrice)
+
+# Histogram
+qplot(housing.processed$SalePrice) + xlab("Sales Price") + ggtitle("Distribution of Sale Price in Data") 
+```
+<font color="#800000">
+The data seems to have a slight right skewed distribution with a mean pricing of 184,386. When modeling this outcome, a strong argument can be made that the price should be log-transformed. A logarithmic price scale uses the percentage of change to plot data points, so, the scale prices are not positioned equidistantly. Furthermore, this will ensure that no houses would be predicted with negative sale prices and that errors in predicting expensive houses will not have an undue influence on the model. 
+</font>
+
+<font color="#800000">
+For a better sense of the numeric variables that constitute area and key characteristics, we look at the histogram for a few. Given the importance of property size metrics, we quickly zoomed in on “GrLivArea”, “LotArea” and “GarageArea” as potential explanatory variables.
+</font>
 
 ```{r}
+par(mfrow = c(3, 3))
+hist(housing.processed$Lot.Frontage, breaks = 20, main = "Feet of Street Connected to Property", border="red", col="steelblue")
+hist(housing.processed$Lot.Area, breaks = 20, main = "Lot Size in Square Feet", border="red", col="steelblue")
+hist(housing.processed$Gr.Liv.Area, breaks = 20, main = "Above Ground Living Area", border="red", col="steelblue")
+hist(housing.processed$Pool.Area, breaks = 20, main = "Pool Area", border="red", col="steelblue")
+hist(housing.processed$Total.Bsmt.SF, breaks = 20, main = "Total Basement Square Feet", border="red", col="steelblue")
+hist(housing.processed$Year.Built, breaks = 20, main = "Year Built", border="red", col="steelblue")
+hist(housing.processed$Full.Bath, breaks = 20, main = "Full Bath", border="red", col="steelblue")
+hist(housing.processed$Bedroom.AbvGr, breaks = 20, main = "Bedroom Above Ground", border="red", col="steelblue")
+hist(housing.processed$Garage.Area, breaks = 20, main = "red", border="red", col="steelblue")
+```
 
-## add time-series data 
+<font color="#800000">
+Intuitively, neighbourhoods are a relevant predictor for Sale Price, so we proceed to make summary tables and boxplots to visualize this relationship. 
+</font>
 
+```{r, warning = FALSE}
+neighborhood.eval <- housing.processed %>%
+  group_by(Neighborhood) %>%
+  summarize(average.price = mean(SalePrice), 
+            median.price = median(SalePrice), .groups = "keep")
+
+neighborhood.eval
+```
+```{r}
+#Neighborhood
+ggplot(data = housing.processed, aes(x =SalePrice , y = Neighborhood)) +
+  geom_boxplot() + ggtitle("Neighborhood vs Sales Price")
+```
+<font color="#800000">
+StoneBr, NridgeHt and NoRidge seem to be the more pricier neighborhoods. Our intuition was spot on: the sales price varies with different neighborhoods, so we should definitely include this in our model as a predictor.
+
+Other characteristic that stands out is overall quality of the house, kitchen quality . We expect there to be a strong linear relationship between quality and prices. The poorer the quality, the lower the price.
+</font>
+
+```{r}
+qual.plot <- ggplot(housing.processed, aes(Overall.Qual,SalePrice)) + geom_jitter(alpha = 0.5, color = "blue")
+qual.plot
+```
+
+```{r}
+qual.plot2 <- ggplot(housing.processed, aes(Kitchen.Qual,SalePrice)) + geom_jitter(alpha = 0.5, color = "blue")
+qual.plot2
+```
+
+
+<font color="#800000">
+For the purpose of making out model leaner, we will explore variables that might exhibit high collinearity. Intuitively, it looks like there are some extra variables which may not be necessary. For example, our expectation is that Lot.Frontage and Lot.Area will be highly correlated. Similarly, Bedroom.AbvGr and TotRms.AbvGrd might follow a similar trend. We look further into the correlations between the numeric variables:
+</font>
+
+
+```{r}
+# create a subset of variable names
+myvars <- c("Lot.Frontage","Lot.Area", "Year.Built", "Year.Remod.Add", "Mas.Vnr.Area","Total.Bsmt.SF", "Bsmt.Unf.SF", "BsmtFin.SF.2","BsmtFin.SF.1", "X1st.Flr.SF","X2nd.Flr.SF", "Low.Qual.Fin.SF","Gr.Liv.Area", "Bsmt.Full.Bath","Bsmt.Half.Bath", "Full.Bath", "Half.Bath", "Bedroom.AbvGr","Kitchen.AbvGr", "Fireplaces", "TotRms.AbvGrd","Garage.Yr.Blt","Garage.Cars", "Garage.Area", "Wood.Deck.SF",	"Open.Porch.SF","Enclosed.Porch", "X3Ssn.Porch",	"Screen.Porch", "Pool.Area", "SalePrice", "Mo.Sold","Yr.Sold")
+
+sub.house <- housing.processed[myvars]
+
+#Create a data frame for variables that are correlated 
+corr.sub.house <- round(cor(sub.house),2)
+corr.table <- as.data.frame(as.table(corr.sub.house))
+names(corr.table)[1] <- "Variable 1"
+names(corr.table)[2] <- "Variable 2"
+
+#Find the variables which are strongly correlated as per rule of 0.6
+corr.subset <- subset(corr.table,  Freq > 0.6 | Freq < -0.6) 
+corr.subset
+
+
+myvars2 <- c("Lot.Frontage","Lot.Area", "Year.Built", "Year.Remod.Add", "Mas.Vnr.Area","Total.Bsmt.SF", "Bsmt.Unf.SF", "BsmtFin.SF.2","BsmtFin.SF.1", "X1st.Flr.SF","X2nd.Flr.SF", "Low.Qual.Fin.SF","Gr.Liv.Area", "Bsmt.Full.Bath","Bsmt.Half.Bath", "Full.Bath", "Half.Bath", "Bedroom.AbvGr","Kitchen.AbvGr", "Fireplaces", "TotRms.AbvGrd","Garage.Yr.Blt","Garage.Cars", "Garage.Area", "Wood.Deck.SF",	"Open.Porch.SF","Enclosed.Porch", "X3Ssn.Porch",	"Screen.Porch", "Pool.Area", "SalePrice", "Mo.Sold","Yr.Sold")
+
+
+#corr.sub.house <- round(cor(sub.house),2)
+
+# Use ggcorrplot to graph correlation. 
+#ggcorrplot(corr.sub.house, hc.order = TRUE, outline.color = 'white', lab = TRUE, title = "Correlation between Variables in Housing Dataset", legend.title = "Correlation")
+
+# Scatter matrix
+#pairs(sub.house)
+```
+70	Year.Remod.Add	Year.Built	0.63	
+88	Garage.Yr.Blt	Year.Built	0.84	
+121	Garage.Yr.Blt	Year.Remod.Add	0.66	
+175	X1st.Flr.SF	Total.Bsmt.SF	0.83	
+196	SalePrice	Total.Bsmt.SF	0.65	
+278	Bsmt.Full.Bath	BsmtFin.SF.1	0.64	
+328	SalePrice	X1st.Flr.SF	0.64
+343	Gr.Liv.Area	X2nd.Flr.SF	0.64	
+347	Half.Bath	X2nd.Flr.SF	0.61	
+412	Full.Bath	Gr.Liv.Area	0.62	
+417	TotRms.AbvGrd	Gr.Liv.Area	0.81	
+427	SalePrice	Gr.Liv.Area	0.71
+582	TotRms.AbvGrd	Bedroom.AbvGr	0.65	
+673	Gr.Liv.Area	TotRms.AbvGrd	0.81	
+539	X2nd.Flr.SF	Half.Bath	0.61	
+782	Garage.Cars	Garage.Area	0.85	
+
+
+
+```{r}
+housing.processed %>% ggplot(aes(x = Yr.Sold, y= SalePrice/1000)) + geom_jitter() + stat_smooth(method = "lm") + ggtitle("Housing Prices Between 2006-2010") + xlab("Year Sold") + ylab("Price in $1000")
+```
+<font color="#800000">
+The dataset covers 2006-2010 which falls within the years of the Great Recession. The Great Recession was a period of marked general decline observed in national economies globally that began in December 2007 and ended in June 2009.  Home prices fell approximately 30 percent, on average, from their mid-2006 peak to mid-2009. Source URL: https://www.federalreservehistory.org/essays/great-recession-of-200709.
+
+Given this fact, it is actually surprising that the dataset does not reflect a decrease in prices; but a stagnant rate across the five years.
+</font>
+
+
+<font color="#800000">
+We also think it's meaningful to explore the relationship between price and year built. Generally, newer houses tend to be more expensive but there could elite neighborhoods with older houses that have a higher price. Let's see if this could be valuable for our model.
+</font>
+
+
+```{r}
+year.plot <- ggplot(housing.processed, aes(Year.Built,SalePrice)) + geom_jitter(alpha = 0.5, color = "blue")
+year.plot
+```
+<font color="#800000">
+Just as we expected, we see that newer houses tend to be more expensive in the dataset. However, there are a few outliers which exhibit the opposite: very old houses appear to increase in price. Perhaps these could be considered as "old century homes" built in years prior to 1920 which would no longer correspond to a price decrease with age. We would have to re-evalute this in our prediction model. 
+</font>
+
+```{r}
+# explore house-style and models dwelling, MS.subclass.
+```
+
+```{r}
 ## Dig a bit deeper into any areas that show trends
 
 
@@ -158,10 +352,6 @@ ggplot(data = housing.processed, aes(x = House.Style, y = SalePrice)) +
 ggplot(data = housing.processed, aes(x = Bldg.Type, y = SalePrice)) +
   geom_boxplot()
 
-#Neighborhood
-
-ggplot(data = housing.processed, aes(x = Neighborhood, y = SalePrice)) +
-  geom_boxplot()
 
 #MSSubclass
 ggplot(data = housing.processed, aes(x = MS.SubClass, y = SalePrice)) +
@@ -173,9 +363,10 @@ ggplot(data = housing.processed, aes(x = Sale.Type, y = SalePrice)) +
   geom_boxplot()
 
 ```
+
 #Initial regression analysis
 ```{r}
-#Geo-Spactial Characteristics
+#Geo-Spatial Characteristics
 
 geo.char <- c("Lot.Area","Lot.Shape","Land.Contour","Lot.Config", "Land.Slope",
               "Land.Contour","Neighborhood","Condition.1","Condition.2",
@@ -213,4 +404,35 @@ ggpairs(data = housing.processed[,hsg.quality])
 
 ggpairs(data = housing.processed[,sales.crit])
 
+```
+
+#Inital Linear Regressions 
+
+<font color="#800000">
+As an initial simple model we will consider a few variables to be important determinants of the price of a property:
+
+- Overall.Qual: The quality rating (from 1 to 10).
+- Neighborhood: Neighborhoods vary across location as per our EDA.
+- MS.Zoning.
+- Garage.Area
+- Lot.Area
+- Year.Built 
+- Kitchen.Qual
+- BsmtFin.SF.1
+- Gr.Liv.Area
+</font>
+
+```{r}
+model.fit.1 <- lm(SalePrice ~
+                 Overall.Qual +
+                 Neighborhood +
+                 MS.Zoning +
+                Garage.Area +
+                Lot.Area +
+                 Year.Built +
+                 Kitchen.Qual +
+                 BsmtFin.SF.1 + 
+                 Gr.Liv.Area,
+               data = housing.processed)
+summary(model.fit.1)
 ```
