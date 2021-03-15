@@ -27,6 +27,7 @@ options(scipen = 4)  # Suppresses scientific notation
 library(tidyverse)
 library(knitr)
 library(GGally)
+library(gridExtra)
 ```
 
 ## Section 1: Data Clean-Up and Exploration
@@ -215,7 +216,9 @@ Now that we've done some cleaning; let's go on to explore our main dependent var
 summary(housing.processed$SalePrice)
 
 # Histogram
-qplot(housing.processed$SalePrice) + xlab("Sales Price") + ggtitle("Distribution of Sale Price in Data") 
+qplot(housing.processed$SalePrice, col = I("black"), fill = I("forest green")) + 
+  xlab("Sales Price") + 
+  ggtitle("Distribution of Sale Price in Data") 
 ```
 
 <font color="#800000">
@@ -247,10 +250,12 @@ Intuitively, neighbourhoods are a relevant predictor for Sale Price, so we proce
 neighborhood.eval <- housing.processed %>%
   group_by(Neighborhood) %>%
   summarize(average.price = mean(SalePrice), 
-            median.price = median(SalePrice), .groups = "keep")
+            median.price = median(SalePrice), .groups = "keep",
+            count = n())
 
-neighborhood.eval
+kable(neighborhood.eval)
 ```
+
 ```{r}
 #Neighborhood
 ggplot(data = housing.processed, aes(x =SalePrice , y = Neighborhood)) +
@@ -272,6 +277,7 @@ qual.plot
 qual.plot2 <- ggplot(housing.processed, aes(Kitchen.Qual,SalePrice)) + geom_jitter(alpha = 0.5, color = "blue")
 qual.plot2
 ```
+
 ```{r}
 #MSSubclass
 ggplot(data = housing.processed, aes(x = SalePrice, y = MS.SubClass)) +
@@ -281,6 +287,14 @@ ggplot(data = housing.processed, aes(x = SalePrice, y = MS.SubClass)) +
 ```{r}
 housing.processed %>% ggplot(aes(x = Yr.Sold, y= SalePrice/1000)) + geom_jitter() + stat_smooth(method = "lm") + ggtitle("Housing Prices Between 2006-2010") + xlab("Year Sold") + ylab("Price in $1000")
 ```
+
+```{r}
+housing.processed %>%
+  group_by(Yr.Sold) %>%
+  summarize(meanprice = mean(SalePrice))
+
+```
+
 
 <font color="#800000">
 The dataset covers 2006-2010 which falls within the years of the Great Recession. The Great Recession was a period of marked general decline observed in national economies globally that began in December 2007 and ended in June 2009.  Home prices fell approximately 30 percent, on average, from their mid-2006 peak to mid-2009. Source URL: https://www.federalreservehistory.org/essays/great-recession-of-200709.
@@ -358,6 +372,7 @@ ggplot(data = housing.processed, aes(x = Sale.Type, y = SalePrice)) +
 
 ```
 
+
 <font color="#800000">
 For the purpose of making out model leaner, we will explore variables that might exhibit high collinearity. Intuitively, it looks like there are some extra variables which may not be necessary. For example, our expectation is that Lot.Frontage and Lot.Area will be highly correlated. Similarly, Bedroom.AbvGr and TotRms.AbvGrd might follow a similar trend. We look further into the correlations between the numeric variables:
 </font>
@@ -377,8 +392,14 @@ names(corr.table)[2] <- "Variable 2"
 
 #Find the variables which are strongly correlated as per rule of 0.6
 corr.subset <- subset(corr.table,  Freq > 0.6 | Freq < -0.6) 
-corr.subset
-
+high.corr <- data.frame(corr.subset)
+high.corr <- high.corr[order(high.corr$Freq),]
+high.corr <- high.corr %>%
+  filter(Freq < 1)
+name1 <- as.character(high.corr$Variable.1)
+name2 <- as.character(high.corr$Variable.2)
+hi.cor.vars <- unique(append(name1, name2))
+hi.cor.vars
 ```
 
 ```{r}
@@ -442,6 +463,17 @@ sub.house.dp.crit <- housing.processed[dp.crit]
 corr.sub.house.dp <- round(cor(sub.house.dp.crit),2)
 
 ```
+
+```{r, fig.width = 15}
+#highly correlated variables
+sub.house.high <- housing.processed[hi.cor.vars]
+corr.sub.house.high <- round(cor(sub.house.high),2)
+
+
+#Use ggcorrplot to graph correlation. 
+ggcorrplot(corr.sub.house.high, hc.order = TRUE, outline.color = 'white', lab = TRUE, title = "Highly Correlated Variables in Housing Dataset", legend.title = "Correlation")
+```
+
 
 ```{r, fig.width = 15}
 #Use ggcorrplot to graph correlation. 
@@ -511,6 +543,68 @@ library(leaps)
 # Continuous Variables - LotFrontage, LotArea, OverallQual,OverallCond, YearBuilt, 1stFlrSF, 2ndFlrSF, LowQualFinSF, GrLivArea, BsmtFullBath, BsmtHalfBath, FullBath, HalfBath, Bedroom, Kitchen, TotRmsAbvGrd, Fireplaces, GarageCars, GarageArea, WoodDeckSF, OpenPorchSF, EnclosedPorch, 3SsnPorch, ScreenPorch, PoolArea, MiscVal 
 regfit.backward=regsubsets(SalePrice~.,data=housing.train,nvmax=11,method="forward")
 ```
+
+```{r}
+nums <- unlist(lapply(housing.train, is.numeric))
+num.housing.train <- housing.train[,nums]
+```
+
+```{r}
+
+regfit.fwd <- regsubsets(SalePrice~., data = num.housing.train, nbest = 1, nvmax = NULL, method = "forward", really.big=TRUE)
+
+```
+
+```{r}
+regfit.summary <- summary(regfit.fwd)
+
+num_variables<-seq(1,length(regfit.summary$rss))
+
+plot_RSS<-ggplot(data = data.frame(regfit.summary$rss),
+                 aes(x=num_variables,y=regfit.summary$rss))+
+  geom_line()+
+  geom_point(x=which.min(regfit.summary$rss),
+             y=min(regfit.summary$rss),aes(color="red"),
+             show.legend = FALSE)+
+  xlab("# Variables")+
+  ylab("RSS")+
+  theme_bw()
+
+plot_R_sq<-ggplot(data = data.frame(regfit.summary$rsq),
+                 aes(x=num_variables,y=regfit.summary$rsq))+
+  geom_line()+
+  geom_point(x=which.max(regfit.summary$rsq),
+             y=max(regfit.summary$rsq),aes(color="red"),
+             show.legend = FALSE)+
+  xlab("# Variables")+
+  ylab("R-sq")+
+  theme_bw()
+
+plot_BIC<-ggplot(data = data.frame(regfit.summary$bic),
+                 aes(x=num_variables,y=regfit.summary$bic))+
+  geom_line()+
+  geom_point(x=which.min(regfit.summary$bic),
+             y=min(regfit.summary$bic),aes(color="red"),
+             show.legend = FALSE)+
+  xlab("# Variables")+
+  ylab("BIC")+
+  theme_bw()
+
+plot_AIC<-ggplot(data = data.frame(regfit.summary$cp),
+                 aes(x=num_variables,y=regfit.summary$cp))+
+  geom_line()+
+  geom_point(x=which.min(regfit.summary$cp),
+             y=min(regfit.summary$cp),aes(color="red"),
+             show.legend = FALSE)+
+  xlab("# Variables")+
+  ylab("AIC")+
+  theme_bw()
+
+
+grid.arrange(plot_RSS, plot_R_sq,plot_AIC,plot_BIC, ncol=2,nrow=2)
+
+```
+
 
 # Functions to Evaluate models
 ```{r}
