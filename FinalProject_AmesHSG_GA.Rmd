@@ -86,7 +86,7 @@ We see 43 character variables which include:
 - Central.Air
 - Kitchen.Qual
 
-The dataset also has `sum(is.na(housing.raw))` NA values. However, in most cases this corresponds to the characteristic not being present in the house; therefore, we will proceed to change these 'NA' values to "None" where it makes sense to not lose any relevant data. e.g --> Pool.QC
+The dataset also has `r sum(is.na(housing.raw))` NA values. However, in most cases this corresponds to the characteristic not being present in the house; therefore, we will proceed to change these 'NA' values to "None" where it makes sense to not lose any relevant data. e.g --> Pool.QC
 </font>
 
 ```{r}
@@ -94,29 +94,25 @@ length.data.raw <- nrow(housing.raw)
 
 housing.clean <- housing.raw
 
-#Turn NA entries in categorical variables into "None", so data isn't 
-#simply considered faulty/missing
-columns <- c(8,32,33,34,35,37,59,60,62,65,66,74,75,76)
-for (i in columns){
-  housing.clean[is.na(housing.clean[,i]),i] <- "None"
-}
-
 #calculate the number of NA's in non catetorical columns
 # for (j in 1: ncol(housing.clean)){
 #   a <- sum(is.na(housing.clean[,j]))
 #   print(paste(j,":",a))
 # }
 
-#Remove NA values from data
-housing.clean <- na.omit(housing.clean)
+#Replace NA values from data adapted from (https://stackoverflow.com/questions/8161836/how-do-i-replace-na-values-with-zeros-in-an-r-dataframe)
+housing.clean <- housing.raw %>% 
+  mutate_if(is.character, ~replace(., is.na(.), "None")) %>%
+  mutate_if(is.numeric, ~replace(., is.na(.), 0))
 
+#Identifying empty strings
 housing.processed <- housing.clean %>%
   mutate(Bsmt.Cond = factor(Bsmt.Cond, levels = c("Ex", "Gd", "TA", "Fa", "Po", "None"))) %>%
   mutate(Bsmt.Exposure = factor(Bsmt.Exposure, levels = c("Ex", "Gd", "TA", "Fa", "Po", "None"))) %>%
   mutate(Fireplace.Qu = factor(Fireplace.Qu, levels = c("Ex", "Gd", "TA", "Fa", "Po", "None"))) %>%
   mutate(Garage.Qual = factor(Garage.Qual, levels = c("Ex", "Gd", "TA", "Fa", "Po", "None"))) %>%
   mutate(Bsmt.Qual = factor(Bsmt.Qual, levels = c("Ex", "Gd", "TA", "Fa", "Po", "None"))) %>%
-  mutate(BsmtFin.Type.1 = factor(BsmtFin.Type.1, levels = c("GLQ", "ALQ", "BLQ", "REC", "LwQ", "UNF", "None"))) %>%
+  mutate(BsmtFin.Type.1 = factor(BsmtFin.Type.1, levels = c("GLQ", "ALQ", "BLQ", "REC", "LwQ", "UNF", "None" ))) %>%
   mutate(BsmtFin.Type.2 = factor(BsmtFin.Type.2, levels = c("GLQ", "ALQ", "BLQ", "REC", "LwQ", "UNF", "None"))) %>%
   mutate(Heating.QC = factor(Heating.QC, levels = c("Ex", "Gd", "TA", "Fa", "Po"))) %>%
   mutate(Kitchen.Qual = factor(Kitchen.Qual, levels = c("Ex", "Gd", "TA", "Fa", "Po"))) %>%
@@ -146,6 +142,13 @@ housing.processed <- housing.clean %>%
                                      '180' = "PUD-MULTILVL",
                                      '190' = "2 FAM CONV.A"))
 
+##CHANGE THIS BACK TO HOUSING CLEAN
+housing.train <- subset(housing.clean, Yr.Sold < 2010)
+housing.train <- subset(housing.train, select = MS.SubClass:SalePrice)
+
+housing.test <- subset(housing.clean, Yr.Sold == 2010)
+housing.test <- subset(housing.test, select = MS.SubClass:SalePrice)
+
 #terminology used is N for New, O for Old, A for All
 
         #20	1-STORY 1946 & NEWER ALL STYLES
@@ -166,44 +169,49 @@ housing.processed <- housing.clean %>%
        #190	2 FAMILY CONVERSION - ALL STYLES AND AGES
 ```
 
-# only 198 entries have data for paved 
 
-# Replaced all NA's with "NONE", so as to ensure that R counts it as a category
 
-# Created levels for all data with c("Ex", "Gd", "TA", "Fa", "Po", "None"): BsmtCond, BsmtExposure, FireplaceQu, GarageQual, GarageCond, BsmtQual
+* only 198 entries have data for paved 
+
+* Replaced all NA's with "NONE", so as to ensure that R counts it as a category
+
+* Created levels for all data with c("Ex", "Gd", "TA", "Fa", "Po", "None"): BsmtCond, BsmtExposure, FireplaceQu, GarageQual, GarageCond, BsmtQual
 - Corr:
 - GarageQual, GarageCond
 
-# Created levels for all data with  c("GLQ", "ALQ", "BLQ", "REC", "LwQ", "UNF", "None"): BsmtFinType1, BsmtFinType2
+* Created levels for all data with  c("GLQ", "ALQ", "BLQ", "REC", "LwQ", "UNF", "None"): BsmtFinType1, BsmtFinType2
 
-#?Need to look at BsmtFinType1, BsmtFinType2 relationship, because it seems that unf/0 is for houses with one basement area
+* ?Need to look at BsmtFinType1, BsmtFinType2 relationship, because it seems that unf/0 is for houses with one basement area
 
-# Created levels for all data with c("Ex", "Gd", "TA", "Fa", "Po"): HeatingQC, KitchenQual, ExterQual, ExterCond
+* Created levels for all data with c("Ex", "Gd", "TA", "Fa", "Po"): HeatingQC, KitchenQual, ExterQual, ExterCond
 
-# Created levels for all data with  c("Typ", "Min1", "Min2", "Mod", "Maj1", "Maj2", "Sev", "Sal"): Functional
+* Created levels for all data with  c("Typ", "Min1", "Min2", "Mod", "Maj1", "Maj2", "Sev", "Sal"): Functional
 
-# Created levels for all data with  c("Fin", "RFn", "Unf", "None"): GarageFinish
+* Created levels for all data with  c("Fin", "RFn", "Unf", "None"): GarageFinish
 
-# Created levels for all data with  c("Ex", "Gd", "TA", "Fa", "None"): PoolQC
+* Created levels for all data with  c("Ex", "Gd", "TA", "Fa", "None"): PoolQC
 
-# Created levels for all data with  c("Reg","IR1","IR2","IR3"): LotShape
+* Created levels for all data with  c("Reg","IR1","IR2","IR3"): LotShape
 
-# Created levels for all data with  c("Gtl","Mod","Sev"): LandSlope
+* Created levels for all data with  c("Gtl","Mod","Sev"): LandSlope
 
-# Created levels for all data with  c(10, 9, 8, 7, 6, 5, 4, 3, 2, 1): OverallQual, OverallCond
+* Created levels for all data with  c(10, 9, 8, 7, 6, 5, 4, 3, 2, 1): OverallQual, OverallCond
 
+* Separate train and test
 # Initial Data Plots and Summaries
 
 <font color="#800000">
 Now that we've done some cleaning; let's go on to explore our main dependent variable: SalePrice. 
 </font>
 
+# Do we want to run summary statistics on whole data Set or just train?
 ```{r, warning = FALSE}
 summary(housing.processed$SalePrice)
 
 # Histogram
 qplot(housing.processed$SalePrice) + xlab("Sales Price") + ggtitle("Distribution of Sale Price in Data") 
 ```
+
 <font color="#800000">
 The data seems to have a slight right skewed distribution with a mean pricing of 184,386. When modeling this outcome, a strong argument can be made that the price should be log-transformed. A logarithmic price scale uses the percentage of change to plot data points, so, the scale prices are not positioned equidistantly. Furthermore, this will ensure that no houses would be predicted with negative sale prices and that errors in predicting expensive houses will not have an undue influence on the model. 
 </font>
@@ -242,6 +250,7 @@ neighborhood.eval
 ggplot(data = housing.processed, aes(x =SalePrice , y = Neighborhood)) +
   geom_boxplot() + ggtitle("Neighborhood vs Sales Price")
 ```
+
 <font color="#800000">
 StoneBr, NridgeHt and NoRidge seem to be the more pricier neighborhoods. Our intuition was spot on: the sales price varies with different neighborhoods, so we should definitely include this in our model as a predictor.
 
@@ -266,6 +275,7 @@ ggplot(data = housing.processed, aes(x = SalePrice, y = MS.SubClass)) +
 ```{r}
 housing.processed %>% ggplot(aes(x = Yr.Sold, y= SalePrice/1000)) + geom_jitter() + stat_smooth(method = "lm") + ggtitle("Housing Prices Between 2006-2010") + xlab("Year Sold") + ylab("Price in $1000")
 ```
+
 <font color="#800000">
 The dataset covers 2006-2010 which falls within the years of the Great Recession. The Great Recession was a period of marked general decline observed in national economies globally that began in December 2007 and ended in June 2009.  Home prices fell approximately 30 percent, on average, from their mid-2006 peak to mid-2009. Source URL: https://www.federalreservehistory.org/essays/great-recession-of-200709.
 
@@ -282,6 +292,7 @@ We also think it's meaningful to explore the relationship between price and year
 year.plot <- ggplot(housing.processed, aes(Year.Built,SalePrice)) + geom_jitter(alpha = 0.5, color = "blue")
 year.plot
 ```
+
 <font color="#800000">
 Just as we expected, we see that newer houses tend to be more expensive in the dataset. However, there are a few outliers which exhibit the opposite: very old houses appear to increase in price. Perhaps these could be considered as "old century homes" built in years prior to 1920 which would no longer correspond to a price decrease with age. We would have to re-evalute this in our prediction model. 
 </font>
@@ -441,7 +452,7 @@ ggcorrplot(corr.sub.house.ag, hc.order = TRUE, outline.color = 'white', lab = TR
 ggcorrplot(corr.sub.house.dp, hc.order = TRUE, outline.color = 'white', lab = TRUE, title = "Correlation between Basement-Bath Characteristics in Housing Dataset", legend.title = "Correlation")
 ```
 
-#Inital Linear Regressions 
+# Inital Linear Regressions 
 
 <font color="#800000">
 As an initial simple model we will consider a few variables to be important determinants of the price of a property:
@@ -472,6 +483,104 @@ model.fit.1 <- lm(SalePrice ~
                  Gr.Liv.Area +
                 Open.Porch.SF +
                 Pool.Area,
-               data = housing.processed)
+               data = housing.train)
 summary(model.fit.1)
+
+#lm.preds = predict(model.fit.1, newdata=housing.test)
+#Error in model.frame.default(Terms, newdata, na.action = na.action, xlev = object$xlevels) : 
+  #factor Kitchen.Qual has new levels Po
+# I think We should refactor this to be numeric...
+```
+
+
+Let's see if subset selection produces similar results to our own intuitive selection.
+
+```{r}
+library(leaps)
+# Categorical Vars - MSSubClass, MSZoning, Street, Alley, Lot Shape, LandContour, Utilities, LotConfig, LandSlope, Neighborhood, Condition1, Condition2, BldgType, HouseStyle, OverallQual, OverallCond, YearBuilt, YearRemodAdd, RoofStyle, RoofMat1, Exterior1st, Exterior2nd, MasVnrType, MasVnrArea, ExterQual,ExterCond, Foundation, BsmtQual, BsmtExposure, BsmtFinType1, BsmtFinType2, Heating, HeatingQC, CentralAir, Electrical, KitchenQual, TotRmsAbvGrd, Functional, FireplaceQu, GarageType, GarageYrBlt, GarageFinish, GarageQual, GaraggeCond, PavedDrive, PoolQC, Fence, MiscFeature, MoSold, YrSold, SaleType, SaleCondition
+
+# Continuous Variables - LotFrontage, LotArea, OverallQual,OverallCond, YearBuilt, 1stFlrSF, 2ndFlrSF, LowQualFinSF, GrLivArea, BsmtFullBath, BsmtHalfBath, FullBath, HalfBath, Bedroom, Kitchen, TotRmsAbvGrd, Fireplaces, GarageCars, GarageArea, WoodDeckSF, OpenPorchSF, EnclosedPorch, 3SsnPorch, ScreenPorch, PoolArea, MiscVal 
+regfit.backward=regsubsets(SalePrice~.,data=housing.train,nvmax=11,method="forward")
+```
+
+# Functions to Evaluate models
+```{r}
+
+X.Train <- subset(housing.train, select = -SalePrice)
+Y.Train <- subset(housing.train, select = SalePrice)
+
+X.Test <- subset(housing.test, select = -SalePrice)
+Y.Test <- subset(housing.test, select = SalePrice)
+
+
+#Functions to calculate Error Terms
+calcMSE <- function(preds, actual) {
+  mean((lasso.pred-actual)^2)
+}
+
+calcRMSE <- function(preds, actual) {
+  sqrt(calcMSE(preds, actual))
+}
+
+calcMAE <- function(preds, actual) {
+  abs(mean(preds-actual))
+}
+
+calcRelErr <- function(preds, actual) {
+  (preds - actual)/actual
+}
+```
+
+# Lasso Model
+
+```{r}
+library(glmnet)
+test <- which(housing.clean$Yr.Sold==2010)
+train <- which(housing.clean$Yr.Sold<2010)
+housing.lasso = subset(housing.clean,select=MS.SubClass:SalePrice)
+
+#Lasso 
+x <- model.matrix(SalePrice~.,housing.lasso)[,-1]
+y <- housing.lasso$SalePrice
+
+#Create Lasso Models for CV
+grid=10^seq(10,-2, length =100)
+lasso.mod=glmnet(x[train,],y[train],alpha=1,lambda=grid)
+plot(lasso.mod)
+
+#Run CV
+set.seed(1)
+cv.out=cv.glmnet(x[train,],y[train],alpha=1)
+plot(cv.out)
+
+#Find BestLam from CV
+bestlam=cv.out$lambda.min
+
+
+lasso.coef = predict(lasso.mod,type="coefficients",s=bestlam)[1:40,]
+kable(lasso.coef[lasso.coef!=0])
+length(lasso.coef[lasso.coef!=0])
+
+lasso.pred=predict(lasso.mod,s=bestlam,newx=x[test,])
+
+paste("MAE: ",calcMAE(preds=lasso.pred, y[test]))
+paste("RMSE: ",calcRMSE(preds=lasso.pred, y[test]))
+paste("Mean RelErr: ", mean(calcRelErr(preds=lasso.pred, y[test])))
+```
+
+
+# Random Forests
+```{r}
+set.seed(1)
+rf <- randomForest(SalePrice ~ .,data=housing.train, mtry=25, importance=TRUE)
+rf
+
+varImpPlot(rf,n.var = 20)
+
+rf.preds <- predict(rf, newdata = housing.test)
+paste("MAE: ",calcMAE(preds=rf.preds, y[test]))
+paste("RMSE: ",calcRMSE(preds=rf.preds, y[test]))
+paste("Mean RelErr: ", mean(calcRelErr(preds=rf.preds, y[test])))
+
+
 ```
