@@ -2,7 +2,11 @@
 title: "FinalProject_AmesHSG"
 author: "Jaih, Katie, Andy, Anum"
 date: "3/12/2021"
-output: html_document
+html_document:
+    toc: true
+    toc_depth: 4
+    theme: cerulean
+    highlight: textmate
 ---
 
 ```{r setup, include=FALSE}
@@ -11,9 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r package_load}
 library(ggplot2) # graphics library
-library(ISLR)    # contains code and data from the textbook
 library(knitr)   # contains kable() function
-library(class)   # contains knn
 library(tree)    # For the tree-fitting 'tree' function
 library(rpart)   # For nicer tree fitting
 library(partykit)  # For nicer tree plotting
@@ -25,7 +27,6 @@ options(scipen = 4)  # Suppresses scientific notation
 
 
 library(tidyverse)
-library(knitr)
 library(GGally)
 library(gridExtra) # for grid.arrange
 ```
@@ -107,8 +108,8 @@ housing.processed <- housing.clean %>%
   mutate(Bsmt.Cond = recode(Bsmt.Cond,"Po" = 1, "Fa" = 2, "TA" = 3, "Gd" = 4, "Ex" = 5, .default = 0)) %>%
   mutate(Bsmt.Exposure = factor(Bsmt.Exposure, levels = c("Gd","Av","Mn","No", "None"))) %>%
   mutate(Fireplace.Qu = recode(Fireplace.Qu,"Po" = 1, "Fa" = 2, "TA" = 3, "Gd" = 4, "Ex" = 5, .default = 0))%>%
-    mutate(Garage.Qual = recode(Garage.Qual,"Po" = 1, "Fa" = 2, "TA" = 3, "Gd" = 4, "Ex" = 5, .default = 0))%>%
-    mutate(Bsmt.Qual = recode(Bsmt.Qual,"Po" = 1, "Fa" = 2, "TA" = 3, "Gd" = 4, "Ex" = 5, .default = 0))%>%
+  mutate(Garage.Qual = recode(Garage.Qual,"Po" = 1, "Fa" = 2, "TA" = 3, "Gd" = 4, "Ex" = 5, .default = 0))%>%
+  mutate(Bsmt.Qual = recode(Bsmt.Qual,"Po" = 1, "Fa" = 2, "TA" = 3, "Gd" = 4, "Ex" = 5, .default = 0))%>%
   mutate(BsmtFin.Type.1 = factor(BsmtFin.Type.1, levels = c("GLQ", "ALQ", "BLQ", "Rec", "LwQ", "Unf", "None"))) %>%
   mutate(BsmtFin.Type.2 = factor(BsmtFin.Type.2, levels = c("GLQ", "ALQ", "BLQ", "Rec", "LwQ", "Unf", "None"))) %>%
   mutate(Heating.QC = factor(Heating.QC, levels = c("Ex", "Gd", "TA", "Fa", "Po"))) %>%
@@ -141,7 +142,7 @@ housing.processed <- housing.clean %>%
                                      '180' = "PUD-MULTILVL",
                                      '190' = "2 FAM CONV.A"))
 
-#housing.processed <- na.fail(subset(housing.processed, select = -c(ï..Order,PID)))
+housing.processed <- na.fail(subset(housing.processed, select = -c(ï..Order,PID)))
 
 test <- which(housing.processed$Yr.Sold==2010)
 train <- which(housing.processed$Yr.Sold<2010)
@@ -526,14 +527,29 @@ lm.fit.1 <- lm(SalePrice ~
                data = housing.train)
 summary(lm.fit.1)
 
+
 lm.preds = predict(lm.fit.1, newdata=housing.test)
+lm.resid = housing.test$SalePrice - lm.preds
+
+#Residual Plot for Linear Model 1
+ggplot(data=data.frame(lm.preds, lm.resid), aes(lm.preds,lm.resid)) +
+  geom_point(size=1,colour="lightblue") +
+  geom_hline(yintercept = mean(lm.resid), color="red")+
+  theme_bw() 
+
+
 lm.MAE <- mae(actual=housing.test$SalePrice, predicted=lm.preds, lm.fit.1)
 lm.RMSE <- rmse(actual=housing.test$SalePrice, predicted=lm.preds, lm.fit.1)
 
 paste("MAE: ", lm.MAE )
 paste("RMSE: ", lm.RMSE)
 paste("Mean RelErr: ", mean(calcRelErr(preds=lm.preds, housing.test$SalePrice)))
+
+
 ```
+
+
+
 
 Let's see if subset selection produces similar results to our own intuitive selection.
 
@@ -636,6 +652,15 @@ kable(lasso.coef[lasso.coef!=0])
 length(lasso.coef[lasso.coef!=0])
 
 lasso.pred=predict(lasso.mod,s=bestlam,newx=x[test,])
+lasso.resid = housing.test$SalePrice - lasso.pred
+
+#Residual Plot for Linear Model 1
+ggplot(data=data.frame(lasso.pred, lasso.resid), aes(lasso.pred,lasso.resid)) +
+  geom_point(size=1,colour="lightblue") +
+  geom_hline(yintercept = mean(lasso.resid), color="red")+
+  theme_bw() 
+
+
 
 paste("MAE: ", mae(predicted=lasso.pred, actual=y[test], lasso.mod))
 paste("RMSE: ", rmse(predicted=lasso.pred, actual=y[test], lasso.mod))
@@ -652,6 +677,15 @@ rf
 varImpPlot(rf,n.var = 20)
 
 rf.preds <- predict(rf, newdata = housing.test)
+
+rf.resid = housing.test$SalePrice - rf.preds
+
+#Residual Plot for Linear Model 1
+ggplot(data=data.frame(rf.preds, rf.resid), aes(rf.preds,rf.resid)) +
+  geom_point(size=1,colour="lightblue") +
+  geom_hline(yintercept = mean(rf.resid), color="red")+
+  theme_bw() 
+
 lm.MAE <- mae(actual=housing.test$SalePrice, predicted=rf.preds, rf)
 lm.RMSE <- rmse(actual=housing.test$SalePrice, predicted=rf.preds, rf)
 
@@ -663,6 +697,7 @@ paste("Mean RelErr: ", mean(calcRelErr(preds=rf.preds, actual=housing.test$SaleP
 ```
 # Random Forest Variables
 ```{r}
+#I think this is redundant information
 rf.imp.plot <- varImpPlot(rf)
 imp.vars <- as.character(rownames(rf.imp.plot)[order(rf.imp.plot, decreasing = TRUE)])
 imp.vars <- imp.vars[c(80:158)]
@@ -928,19 +963,19 @@ We will use a polynomial with degree 3 for 2nd.Flr.SF
 
 
 ```{r}
-basement.cv <- smoothCV(x = housing.train$Total.Bsmt.SF,
+basement.cv <- smoothCV(x = housing.train$Bsmt.Qual,
          y = housing.train$SalePrice,
          K = 10,
          df.min = 1,
-         df.max = 6)
+         df.max = 5)
 
-plot.smoothCV(basement.cv, K = 10, title.text = "CV Error: SalePrice ~ Total.Bsmt.SF",
+plot.smoothCV(basement.cv, K = 10, title.text = "CV Error: SalePrice ~ Bsmt.Qual",
               y.scale.factor = 1.1)
 ```
 
 
 <font color="#800000">
-We will use a smoothing spline with degree 5 for Total.Bsmt.SF
+We will use a smoothing spline with degree 5 for Bsmt.Qual
 </font>
 
 
@@ -975,9 +1010,11 @@ Our CV error model suggests we use a polynomial with df = 2. As with overall qua
 </font>
 
 ```{r}
-gam.fit <- gam(SalePrice ~ bs(Gr.Liv.Area, 4) + ns(Overall.Qual,3) + s(X1st.Flr.SF, 6) + MS.SubClass +
-                 poly(X2nd.Flr.SF, 3) + s(Total.Bsmt.SF, 5) + MS.Zoning + poly(Full.Bath, 3) + 
-                 Kitchen.Qual + Neighborhood + Central.Air, data = housing.train)
+
+
+gam.fit <- gam(SalePrice ~ bs(Gr.Liv.Area, 4) + ns(Overall.Qual,3) + s(X1st.Flr.SF, 10) + MS.SubClass +
+                 poly(X2nd.Flr.SF, 3) + ns(Bsmt.Qual, 3) + MS.Zoning + ns(Full.Bath, 4) + 
+                 poly(Kitchen.Qual,2) + Neighborhood + Utilities + Lot.Area, data = housing.train)
 summary(gam.fit)
 
 gam.deviance <- 1 - gam.fit$deviance/gam.fit$null.deviance
@@ -988,6 +1025,14 @@ gam.deviance
 gam.preds <- predict(gam.fit, newdata = housing.test)
 gam.MAE <- mae(actual=housing.test$SalePrice, predicted=gam.preds, gam.fit)
 gam.RMSE <- rmse(actual=housing.test$SalePrice, predicted=gam.preds, gam.fit)
+
+gam.resid = housing.test$SalePrice - gam.preds
+
+#Residual Plot for Linear Model 1
+ggplot(data=data.frame(gam.preds, gam.resid), aes(gam.preds,gam.resid)) +
+  geom_point(size=1,colour="lightblue") +
+  geom_hline(yintercept = mean(gam.resid), color="red")+
+  theme_bw() 
 
 paste("MAE: ",gam.MAE)
 paste("RMSE: ",gam.RMSE)
@@ -1093,7 +1138,7 @@ price.calculator <- function(id, basement = 0, full.bath = "null", half.bath = "
 
 
 ```{r}
-price.calculator(id = 10, full.bath = 3)
+#price.calculator(id = 10, full.bath = 3)
 ```
 
 ```{r}
