@@ -141,7 +141,7 @@ housing.processed <- housing.clean %>%
                                      '180' = "PUD-MULTILVL",
                                      '190' = "2 FAM CONV.A"))
 
-housing.processed <- na.fail(subset(housing.processed, select = -c(ï..Order,PID)))
+#housing.processed <- na.fail(subset(housing.processed, select = -c(ï..Order,PID)))
 
 test <- which(housing.processed$Yr.Sold==2010)
 train <- which(housing.processed$Yr.Sold<2010)
@@ -608,6 +608,7 @@ grid.arrange(plot_RSS, plot_R_sq,plot_AIC,plot_BIC, ncol=2,nrow=2)
 #variables for lowest BIC
 coef(regfit.fwd, which.min(regfit.summary$bic))
 ```
+
 # Lasso Model
 
 ```{r}
@@ -640,7 +641,6 @@ paste("MAE: ", mae(predicted=lasso.pred, actual=y[test], lasso.mod))
 paste("RMSE: ", rmse(predicted=lasso.pred, actual=y[test], lasso.mod))
 paste("Mean RelErr: ", mean(calcRelErr(preds=lasso.pred, y[test])))
 ```
-
 
 
 # Random Forests
@@ -854,7 +854,13 @@ plot.smoothCV <- function(smoothcv.err, K, title.text = "", facet = FALSE,
 
 # Finding models with lowest CV Error
 
-Variables to use: Gr.Liv.Area, Overall.Qual, X1st.Flr.SF, MS.SubClass, X2nd.Flr.SF, BsmtFin.Type.1, MS.Zoning, Full.Bath, Kitchen.Qual, TotRms.AbvGrd, Neighborhood, Central.Air
+<font color="#800000">
+As per our earlier analyses, the following variables seem to be key components in evaluating a GAM model:
+
+Variables to use: Gr.Liv.Area, Overall.Qual, X1st.Flr.SF, MS.SubClass, X2nd.Flr.SF, Total.Bsmt.SF, MS.Zoning, Full.Bath, Kitchen.Qual, Neighborhood, and Central.Air
+</font>
+
+
 
 ```{r}
 gr.area.cv <- smoothCV(x = housing.train$Gr.Liv.Area,
@@ -866,8 +872,10 @@ gr.area.cv <- smoothCV(x = housing.train$Gr.Liv.Area,
 plot.smoothCV(gr.area.cv, K = 10, title.text = "CV Error: SalePrice ~ Gr.Liv.Area",
               y.scale.factor = 1.1)
 ```
+<font color="#800000">
+We will use a cubic spline of 4 with the variable Gr.Liv.Area. This has the lowest 10-fold CV error. 
+</font>
 
-Use: Cubic 4
 
 
 ```{r}
@@ -880,7 +888,10 @@ qual.cv <- smoothCV(x = housing.train$Overall.Qual,
 plot.smoothCV(qual.cv, K = 10, title.text = "CV Error: SalePrice ~ Overall.Qual")
 ```
 
-natural spline 3
+<font color="#800000">
+Our CV error model suggests we use a natural spline with df = 3. Our earlier analysis showed a linear relationship between price and overall quality and it is a key predictor for our model. When finalizing we will run estimates with both to see which adds more value to our model with less error. 
+</font>
+
 
 
 ```{r}
@@ -894,7 +905,10 @@ plot.smoothCV(X1st.flr.cv, K = 10, title.text = "CV Error: SalePrice ~ 1st.Flr.S
               y.scale.factor = 1.1)
 ```
 
-smooth 7
+<font color="#800000">
+We will use a polynomial with degree 6 for 1st.Flr.SF. 
+</font>
+
 
 ```{r}
 X2nd.flr.cv <- smoothCV(x = housing.train$X2nd.Flr.SF,
@@ -907,36 +921,28 @@ plot.smoothCV(X2nd.flr.cv, K = 10, title.text = "CV Error: SalePrice ~ 2nd.Flr.S
               y.scale.factor = 1.1)
 ```
 
-Cubic 6
+<font color="#800000">
+We will use a polynomial with degree 3 for 2nd.Flr.SF
+</font>
 
-
-```{r}
-#took this out
-#rooms.cv <- smoothCV(x = housing.train$TotRms.AbvGrd,
-#         y = housing.train$SalePrice,
-#        K = 10,
-#         df.min = 1,
-#         df.max = 10)
-
-#plot.smoothCV(rooms.cv, K = 10, title.text = "CV Error: SalePrice ~ TotRms.AbvGrd",
-#              y.scale.factor = 1.1)
-```
-
-cubic 3
 
 
 ```{r}
-basement.cv <- smoothCV(x = as.numeric(housing.train$BsmtFin.Type.1),
+basement.cv <- smoothCV(x = housing.train$Total.Bsmt.SF,
          y = housing.train$SalePrice,
          K = 10,
          df.min = 1,
          df.max = 6)
 
-plot.smoothCV(basement.cv, K = 10, title.text = "CV Error: SalePrice ~ BsmtFin.Type.1",
+plot.smoothCV(basement.cv, K = 10, title.text = "CV Error: SalePrice ~ Total.Bsmt.SF",
               y.scale.factor = 1.1)
 ```
 
-poly 5
+
+<font color="#800000">
+We will use a smoothing spline with degree 5 for Total.Bsmt.SF
+</font>
+
 
 ```{r}
 bath.cv <- smoothCV(x = housing.train$Full.Bath,
@@ -949,7 +955,9 @@ plot.smoothCV(bath.cv, K = 10, title.text = "CV Error: SalePrice ~ Full.Bath",
               y.scale.factor = 1.1)
 ```
 
-poly 3
+<font color="#800000">
+We will use a polynomial with df = 3 
+</font>
 
 
 ```{r}
@@ -962,30 +970,52 @@ kitchen.cv <- smoothCV(x = housing.train$Kitchen.Qual,
 plot.smoothCV(kitchen.cv, K = 10, title.text = "CV Error: SalePrice ~ Kitchen.Qual")
 ```
 
-poly 2
-
+<font color="#800000">
+Our CV error model suggests we use a polynomial with df = 2. As with overall quality, kitchen quality is a salient predictor and our initial summaries corroborate the finding of a linear relationship between price and kitchen quality; we will go for a linear fit. 
+</font>
 
 ```{r}
-gam.fit <- gam(SalePrice ~ bs(Gr.Liv.Area, 4) + ns(Overall.Qual, 3) + s(X1st.Flr.SF, 7) + MS.SubClass +
-                 bs(X2nd.Flr.SF, 6) + poly(as.numeric(BsmtFin.Type.1), 5) + MS.Zoning + poly(Full.Bath, 3) + 
-                 poly(Kitchen.Qual, 2) + Neighborhood + Central.Air, data = housing.train)
+gam.fit <- gam(SalePrice ~ bs(Gr.Liv.Area, 4) + ns(Overall.Qual,3) + s(X1st.Flr.SF, 6) + MS.SubClass +
+                 poly(X2nd.Flr.SF, 3) + s(Total.Bsmt.SF, 5) + MS.Zoning + poly(Full.Bath, 3) + 
+                 Kitchen.Qual + Neighborhood + Central.Air, data = housing.train)
 summary(gam.fit)
 
 gam.deviance <- 1 - gam.fit$deviance/gam.fit$null.deviance
 gam.deviance
 ```
 
-Our GAM model accounts for roughly 90.3% of the deviance explained. 
-
 ```{r}
 gam.preds <- predict(gam.fit, newdata = housing.test)
 gam.MAE <- mae(actual=housing.test$SalePrice, predicted=gam.preds, gam.fit)
 gam.RMSE <- rmse(actual=housing.test$SalePrice, predicted=gam.preds, gam.fit)
 
-paste("MAE: ",lm.MAE)
-paste("RMSE: ",lm.RMSE)
+paste("MAE: ",gam.MAE)
+paste("RMSE: ",gam.RMSE)
 paste("Mean RelErr: ", mean(calcRelErr(preds=gam.preds, actual=housing.test$SalePrice)))
 
+```
+
+
+<font color="#800000">
+Our GAM model accounts for roughly 88.9% of the deviance explained. The percent deviance explained is the Generalized Additive Model analog of R-squared. It is exactly equal to the R-squared for regression models that can be fit with both the gam and lm functions. After cutting down to relevant variables, we attempt to recreate a multiple linear regression model. When predicting our model, we used natural spline and linear model for overall quality. However, the prediction error was less with the natural spline. To see if a multiple linear model does better, we fit the same variables on multiple regression. 
+</font>
+
+```{r}
+#run a multiple linear regression of SalePrice on the same model
+lm.fit.2 <- lm(SalePrice ~ Gr.Liv.Area + Overall.Qual + X1st.Flr.SF + MS.SubClass + X2nd.Flr.SF + Total.Bsmt.SF + MS.Zoning + Full.Bath + Kitchen.Qual + Neighborhood + Central.Air , data = housing.train)
+
+summary(lm.fit.2)
+```
+
+
+```{r}
+lm.preds.2 = predict(lm.fit.2, newdata=housing.test)
+lm.MAE.2 <- mae(actual=housing.test$SalePrice, predicted=lm.preds.2, lm.fit.2)
+lm.RMSE.2 <- rmse(actual=housing.test$SalePrice, predicted=lm.preds.2, lm.fit.2)
+
+paste("MAE: ", lm.MAE.2 )
+paste("RMSE: ", lm.RMSE.2)
+paste("Mean RelErr: ", mean(calcRelErr(preds=lm.preds.2, housing.test$SalePrice)))
 ```
 
 
