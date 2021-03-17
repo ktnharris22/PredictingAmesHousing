@@ -1,10 +1,12 @@
 ---
-title: "FinalProject_AmesHSG"
 author: "Jaih, Katie, Andy, Anum"
 date: "3/12/2021"
-html_document:
-    toc: true
-    toc_depth: 4
+title: "FinalProject_AmesHSG"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 3
+    code_folding: show
     theme: cerulean
     highlight: textmate
 ---
@@ -39,7 +41,7 @@ We are going to examine the housing data-set to pick out some key characteristic
 
 ```{r}
 #read in data
-housing.raw <- read.csv("AmesHousing.csv")
+housing.raw <- read.csv("AmesHousing.csv", fileEncoding="UTF-8-BOM")
 ```
 
 ```{r}
@@ -142,7 +144,7 @@ housing.processed <- housing.clean %>%
                                      '180' = "PUD-MULTILVL",
                                      '190' = "2 FAM CONV.A"))
 
-housing.processed <- na.fail(subset(housing.processed, select = -c(ï..Order,PID)))
+housing.processed <- na.fail(subset(housing.processed, select = -c(Order,PID)))
 
 test <- which(housing.processed$Yr.Sold==2010)
 train <- which(housing.processed$Yr.Sold<2010)
@@ -486,13 +488,23 @@ ggcorrplot(corr.sub.house.ag, hc.order = TRUE, outline.color = 'white', lab = TR
 ggcorrplot(corr.sub.house.dp, hc.order = TRUE, outline.color = 'white', lab = TRUE, title = "Correlation between Basement-Bath Characteristics in Housing Dataset", legend.title = "Correlation")
 ```
 
-# Functions to Evaluate models
+
 ```{r}
+#Helper Functions
 calcRelErr <- function(preds, actual) {
   (preds - actual)/actual
 }
+
+findAvg<-function(x){
+  if(typeof(x) == "character" || typeof(x)=="integer"){
+    names(which.max(table(x)))
+  }else {
+    mean(x)
+  }
+}
 ```
 
+## Section 2: Methodology
 # Inital Linear Regressions 
 
 <font color="#800000">
@@ -549,24 +561,13 @@ paste("Mean RelErr: ", mean(calcRelErr(preds=lm.preds, housing.test$SalePrice)))
 ```
 
 
-
-
-Let's see if subset selection produces similar results to our own intuitive selection.
-
-```{r}
-library(leaps)
-# Categorical Vars - MSSubClass, MSZoning, Street, Alley, Lot Shape, LandContour, Utilities, LotConfig, LandSlope, Neighborhood, Condition1, Condition2, BldgType, HouseStyle, OverallQual, OverallCond, YearBuilt, YearRemodAdd, RoofStyle, RoofMat1, Exterior1st, Exterior2nd, MasVnrType, MasVnrArea, ExterQual,ExterCond, Foundation, BsmtQual, BsmtExposure, BsmtFinType1, BsmtFinType2, Heating, HeatingQC, CentralAir, Electrical, KitchenQual, TotRmsAbvGrd, Functional, FireplaceQu, GarageType, GarageYrBlt, GarageFinish, GarageQual, GaraggeCond, PavedDrive, PoolQC, Fence, MiscFeature, MoSold, YrSold, SaleType, SaleCondition
-
-# Continuous Variables - LotFrontage, LotArea, OverallQual,OverallCond, YearBuilt, 1stFlrSF, 2ndFlrSF, LowQualFinSF, GrLivArea, BsmtFullBath, BsmtHalfBath, FullBath, HalfBath, Bedroom, Kitchen, TotRmsAbvGrd, Fireplaces, GarageCars, GarageArea, WoodDeckSF, OpenPorchSF, EnclosedPorch, 3SsnPorch, ScreenPorch, PoolArea, MiscVal 
-```
-
 ```{r}
 nums <- unlist(lapply(housing.train, is.numeric))
 num.housing.train <- housing.train[,nums]
 ```
 
 ```{r}
-
+library(leaps)
 regfit.fwd <- regsubsets(SalePrice~., data = num.housing.train, nbest = 1, nvmax = NULL, method = "forward", really.big=TRUE)
 
 ```
@@ -654,7 +655,7 @@ length(lasso.coef[lasso.coef!=0])
 lasso.pred=predict(lasso.mod,s=bestlam,newx=x[test,])
 lasso.resid = housing.test$SalePrice - lasso.pred
 
-#Residual Plot for Linear Model 1
+#Residual Plot for Lasso Model 1
 ggplot(data=data.frame(lasso.pred, lasso.resid), aes(lasso.pred,lasso.resid)) +
   geom_point(size=1,colour="lightblue") +
   geom_hline(yintercept = mean(lasso.resid), color="red")+
@@ -680,7 +681,7 @@ rf.preds <- predict(rf, newdata = housing.test)
 
 rf.resid = housing.test$SalePrice - rf.preds
 
-#Residual Plot for Linear Model 1
+#Residual Plot for Random Forest Model 1
 ggplot(data=data.frame(rf.preds, rf.resid), aes(rf.preds,rf.resid)) +
   geom_point(size=1,colour="lightblue") +
   geom_hline(yintercept = mean(rf.resid), color="red")+
@@ -1011,10 +1012,14 @@ Our CV error model suggests we use a polynomial with df = 2. As with overall qua
 
 ```{r}
 
+gam.fit <- gam(SalePrice ~ bs(Gr.Liv.Area, 4) + ns(Overall.Qual, 3) + s(X1st.Flr.SF, 7) + MS.SubClass +
+                 bs(X2nd.Flr.SF, 6) + poly(as.numeric(BsmtFin.Type.1), 5) + MS.Zoning + poly(Full.Bath, 3) + 
+                 poly(Kitchen.Qual, 2) + Neighborhood + Central.Air, data = housing.train)
 
-gam.fit <- gam(SalePrice ~ bs(Gr.Liv.Area, 4) + ns(Overall.Qual,3) + s(X1st.Flr.SF, 10) + MS.SubClass +
+gam.fit1 <- gam(SalePrice ~ bs(Gr.Liv.Area, 4) + ns(Overall.Qual,3) + s(X1st.Flr.SF, 10) + MS.SubClass +
                  poly(X2nd.Flr.SF, 3) + ns(Bsmt.Qual, 3) + MS.Zoning + ns(Full.Bath, 4) + 
                  poly(Kitchen.Qual,2) + Neighborhood + Utilities + Lot.Area, data = housing.train)
+
 summary(gam.fit)
 
 gam.deviance <- 1 - gam.fit$deviance/gam.fit$null.deviance
@@ -1063,6 +1068,7 @@ paste("RMSE: ", lm.RMSE.2)
 paste("Mean RelErr: ", mean(calcRelErr(preds=lm.preds.2, housing.test$SalePrice)))
 ```
 
+## Section 3: Key Findings/Take Aways
 
 # Home Improvement - Sale Price Calculator
 
