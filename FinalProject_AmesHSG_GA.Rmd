@@ -27,7 +27,7 @@ options(scipen = 4)  # Suppresses scientific notation
 library(tidyverse)
 library(knitr)
 library(GGally)
-library(gridExtra)
+library(gridExtra) # for grid.arrange
 ```
 
 ## Section 1: Data Clean-Up and Exploration
@@ -604,8 +604,10 @@ plot_AIC<-ggplot(data = data.frame(regfit.summary$cp),
 grid.arrange(plot_RSS, plot_R_sq,plot_AIC,plot_BIC, ncol=2,nrow=2)
 
 ```
-
-
+```{r}
+#variables for lowest BIC
+coef(regfit.fwd, which.min(regfit.summary$bic))
+```
 # Lasso Model
 
 ```{r}
@@ -640,6 +642,7 @@ paste("Mean RelErr: ", mean(calcRelErr(preds=lasso.pred, y[test])))
 ```
 
 
+
 # Random Forests
 ```{r}
 set.seed(1)
@@ -658,3 +661,525 @@ paste("Mean RelErr: ", mean(calcRelErr(preds=rf.preds, actual=housing.test$SaleP
 
 
 ```
+# Random Forest Variables
+```{r}
+rf.imp.plot <- varImpPlot(rf)
+imp.vars <- as.character(rownames(rf.imp.plot)[order(rf.imp.plot, decreasing = TRUE)])
+imp.vars <- imp.vars[c(80:158)]
+imp.vars
+rf$importance
+```
+
+
+
+```{r}
+#Out-of-bag MSE curve
+plot(rf)
+```
+
+This plot shows that the Out-of-Bag (OOB) test error plateaus at around 400 trees. We will run a test to see which mtry value gives the lowest OOB test error.
+
+
+```{r}
+mtry <- tuneRF(housing.train[-80], housing.train$SalePrice, ntreeTry = 500,
+               stepFactor = 1.5, improve = 0.01, trace = TRUE, plot = TRUE)
+best.m <- mtry[mtry[,2] == min(mtry[,2]), 1]
+
+print(mtry)
+print(best.m)
+```
+
+According to the tuning model, the random forest model that results in the lowest Out-of-Bag error estimates uses an mtry value of 39. The next three lowest OOB Errors come with mtry values of 18, 26, and 58. Note, we originally ran our model with an mtry value of 25. 
+
+```{r}
+#set.seed(1)
+#rf <- randomForest(SalePrice ~ .,data=housing.train, mtry=25, importance=TRUE)
+#rf
+
+#varImpPlot(rf,n.var = 20)
+
+#rf.preds <- predict(rf, newdata = housing.test)
+#lm.MAE <- mae(actual=housing.test$SalePrice, predicted=rf.preds, rf)
+#lm.RMSE <- rmse(actual=housing.test$SalePrice, predicted=rf.preds, rf)
+
+#paste("MAE: ",lm.MAE)
+#paste("RMSE: ",lm.RMSE)
+#paste("Mean RelErr: ", mean(calcRelErr(preds=rf.preds, actual=housing.test$SalePrice)))
+
+```
+
+# GAM Model
+
+```{r}
+library(gam)
+library(plyr)
+library(dplyr)
+```
+
+
+```{r}
+#Poly, cubic, natural, and smoothing
+polyTestErr <- function(dat, train, d) {
+  poly.fit <- lm(y ~ poly(x, degree = d), data = dat, subset = train)
+  preds <- predict(poly.fit, dat)[-train]
+  mean((dat$y[-train] - preds)^2)
+}
+
+cubicSplineTestErr <- function(dat, train, df) {
+  if(df >= 3) {
+    spline.fit <- lm(y ~ bs(x, df = df), data = dat, subset = train)
+    preds <- predict(spline.fit, dat)[-train]
+    mean((dat$y[-train] - preds)^2)
+  } else {
+    NA
+  }
+}
+
+naturalSplineTestErr <- function(dat, train, df) {
+  if(df >= 1) {
+    spline.fit <- lm(y ~ ns(x, df = df), data = dat, subset = train)
+    preds <- predict(spline.fit, dat)[-train]
+    mean((dat$y[-train] - preds)^2)
+  } else {
+    NA
+  }
+}
+
+smoothSplineTestErr <- function(dat, train, df) {
+  if(df > 1) {
+    spline.fit <- with(dat, smooth.spline(x[train], y[train], df = df))
+    preds <- predict(spline.fit, dat$x)$y[-train]
+    mean((dat$y[-train] - preds)^2)
+  } else {
+    NA
+  }
+}
+
+```
+
+
+```{r}
+smoothCV <- function(x, y, K = 10, df.min = 1, df.max = 10) {
+  dat <- data.frame(x = x, y = y)
+  n <- length(y) # number of observations
+  
+  num.methods <- 4
+  method.names <- c("poly", "cubic.spline", "natural.spline", "smoothing.spline")
+  err.out <- data.frame(df = rep(df.min:df.max, each = num.methods),
+                        method = rep(method.names, df.max - df.min + 1))
+  set.seed(1)
+  # Get a random permutation of the indexes
+  random.perm <- sample(n)
+  # break points for the folds.  If n is not evenly divisible by K,
+  # these may not be of exactly the same size.
+  fold.breaks <- round(seq(1,n+1, length.out = K + 1))
+  fold.start <- fold.breaks[1:K]
+  fold.end <- fold.breaks[2:(K+1)] - 1
+  fold.end[K] <- n # Fix the last endoint to equal n
+  fold.size <- fold.end - fold.start + 1 # num obs in each fold
+  
+  cv.err <- NULL
+  fold.err <- matrix(0, nrow = K, ncol = 4)
+  colnames(fold.err) <- c("poly", "cubic.spline", "natural.spline", "smoothing.spline")
+  # Outer loop: Loop over degrees of freedom
+  # Inner loop: Iterate over the K folds
+  for(df in df.min:df.max) {
+    for(k in 1:K) {
+      test.idx <- fold.start[k]:fold.end[k]
+      train <- random.perm[-test.idx]
+      
+      # Calculate test error for the four models
+      poly.err <- polyTestErr(dat, train = train, d = df)
+      cubic.spline.err <- cubicSplineTestErr(dat, train = train, df = df)
+      natural.spline.err <- naturalSplineTestErr(dat, train = train, df = df)
+      smooth.spline.err <- smoothSplineTestErr(dat, train = train, df = df)
+      
+      # Store results for this fold
+      fold.err[k,] <- c(poly.err, cubic.spline.err, natural.spline.err, smooth.spline.err)
+#       print(fold.err[k,])
+    }
+    # Perform weighted averaging to calculate CV error estimate
+    # MSE estimates from each fold are weighted by the size of the fold
+    # If all folds are the same size, this is the same thing as the unweighted
+    # average of all of the MSE's
+    err.ave <- colSums(sweep(fold.err, MARGIN = 1, fold.size, FUN = "*") / n)
+    cv.err <- c(cv.err, err.ave)
+  }
+  err.out$cv.error <- cv.err
+  err.out
+}
+```
+
+```{r}
+# This plotting approach has a facet option which allows the user to show
+# three separate plots instead of overlaying the curves
+# If y.scale.factor is non-null, the range of the 
+# y-axis for the plot is restricted to y.min to y.min*y.scale.factor
+plot.smoothCV <- function(smoothcv.err, K, title.text = "", facet = FALSE,
+                          y.scale.factor = NULL) {
+
+  # Convert the method names
+  dat <- transform(smoothcv.err, 
+                   method = mapvalues(method,
+                                      c("poly", "cubic.spline", "natural.spline", "smoothing.spline"),
+                                      c("Polynomial", "Cubic Spline", "Natural Spline", "Smoothing Spline")
+                                      )
+                   )
+  
+  # Set axes labels
+  x.text <- "Degrees of Freedom"
+  y.text <- paste0(K, "-fold CV Error")
+  
+  # The ggplot "setting": data, axes, and color by method
+  p <- ggplot(data = dat, aes(x = df, y = cv.error, colour = method)) 
+  
+  # Overlay with line plots, data points, axes labels, and graph title
+  p <- p + geom_line() + geom_point() + xlab(x.text) + ylab(y.text) +
+          ggtitle(title.text)
+  
+  # Adjust the y axis range if y.scale.factor is specified
+  if(!is.null(y.scale.factor)) {
+    min.err <- min(dat$cv.error, na.rm = TRUE)
+    p <- p + ylim(min.err, y.scale.factor * min.err)
+  }
+  
+  # Show a separate plot per method if facet=TRUE
+  if(!facet) {
+    print(p)
+  } else {
+    print(p + facet_wrap("method"))
+  }
+}
+```
+
+# Finding models with lowest CV Error
+
+Variables to use: Gr.Liv.Area, Overall.Qual, X1st.Flr.SF, MS.SubClass, X2nd.Flr.SF, BsmtFin.Type.1, MS.Zoning, Full.Bath, Kitchen.Qual, TotRms.AbvGrd, Neighborhood, Central.Air
+
+```{r}
+gr.area.cv <- smoothCV(x = housing.train$Gr.Liv.Area,
+         y = housing.train$SalePrice,
+         K = 10,
+         df.min = 1,
+         df.max = 10)
+
+plot.smoothCV(gr.area.cv, K = 10, title.text = "CV Error: SalePrice ~ Gr.Liv.Area",
+              y.scale.factor = 1.1)
+```
+
+Use: Cubic 4
+
+
+```{r}
+qual.cv <- smoothCV(x = housing.train$Overall.Qual,
+         y = housing.train$SalePrice,
+         K = 10,
+         df.min = 1,
+         df.max = 9)
+
+plot.smoothCV(qual.cv, K = 10, title.text = "CV Error: SalePrice ~ Overall.Qual")
+```
+
+natural spline 3
+
+
+```{r}
+X1st.flr.cv <- smoothCV(x = housing.train$X1st.Flr.SF,
+         y = housing.train$SalePrice,
+         K = 10,
+         df.min = 1,
+         df.max = 10)
+
+plot.smoothCV(X1st.flr.cv, K = 10, title.text = "CV Error: SalePrice ~ 1st.Flr.SF",
+              y.scale.factor = 1.1)
+```
+
+smooth 7
+
+```{r}
+X2nd.flr.cv <- smoothCV(x = housing.train$X2nd.Flr.SF,
+         y = housing.train$SalePrice,
+         K = 10,
+         df.min = 1,
+         df.max = 10)
+
+plot.smoothCV(X2nd.flr.cv, K = 10, title.text = "CV Error: SalePrice ~ 2nd.Flr.SF",
+              y.scale.factor = 1.1)
+```
+
+Cubic 6
+
+
+```{r}
+#took this out
+#rooms.cv <- smoothCV(x = housing.train$TotRms.AbvGrd,
+#         y = housing.train$SalePrice,
+#        K = 10,
+#         df.min = 1,
+#         df.max = 10)
+
+#plot.smoothCV(rooms.cv, K = 10, title.text = "CV Error: SalePrice ~ TotRms.AbvGrd",
+#              y.scale.factor = 1.1)
+```
+
+cubic 3
+
+
+```{r}
+basement.cv <- smoothCV(x = as.numeric(housing.train$BsmtFin.Type.1),
+         y = housing.train$SalePrice,
+         K = 10,
+         df.min = 1,
+         df.max = 6)
+
+plot.smoothCV(basement.cv, K = 10, title.text = "CV Error: SalePrice ~ BsmtFin.Type.1",
+              y.scale.factor = 1.1)
+```
+
+poly 5
+
+```{r}
+bath.cv <- smoothCV(x = housing.train$Full.Bath,
+         y = housing.train$SalePrice,
+         K = 10,
+         df.min = 1,
+         df.max = 4)
+
+plot.smoothCV(bath.cv, K = 10, title.text = "CV Error: SalePrice ~ Full.Bath",
+              y.scale.factor = 1.1)
+```
+
+poly 3
+
+
+```{r}
+kitchen.cv <- smoothCV(x = housing.train$Kitchen.Qual,
+         y = housing.train$SalePrice,
+         K = 10,
+         df.min = 1,
+         df.max = 3)
+
+plot.smoothCV(kitchen.cv, K = 10, title.text = "CV Error: SalePrice ~ Kitchen.Qual")
+```
+
+poly 2
+
+
+```{r}
+gam.fit <- gam(SalePrice ~ bs(Gr.Liv.Area, 4) + ns(Overall.Qual, 3) + s(X1st.Flr.SF, 7) + MS.SubClass +
+                 bs(X2nd.Flr.SF, 6) + poly(as.numeric(BsmtFin.Type.1), 5) + MS.Zoning + poly(Full.Bath, 3) + 
+                 poly(Kitchen.Qual, 2) + Neighborhood + Central.Air, data = housing.train)
+summary(gam.fit)
+
+gam.deviance <- 1 - gam.fit$deviance/gam.fit$null.deviance
+gam.deviance
+```
+
+Our GAM model accounts for roughly 90.3% of the deviance explained. 
+
+```{r}
+gam.preds <- predict(gam.fit, newdata = housing.test)
+gam.MAE <- mae(actual=housing.test$SalePrice, predicted=gam.preds, gam.fit)
+gam.RMSE <- rmse(actual=housing.test$SalePrice, predicted=gam.preds, gam.fit)
+
+paste("MAE: ",lm.MAE)
+paste("RMSE: ",lm.RMSE)
+paste("Mean RelErr: ", mean(calcRelErr(preds=gam.preds, actual=housing.test$SalePrice)))
+
+```
+
+
+# Home Improvement - Sale Price Calculator
+
+id: the row index for the home 
+basement: the level upgrade requested ("GLQ", "ALQ", "BLQ", "Rec", "LwQ")
+full.bath: the # of full bathrooms to add
+half.bath: the # of half bathrooms to add
+kitchen: the level upgrade requested (Fa" = 2, "TA" = 3, "Gd" = 4, "Ex" = 5)
+AC: "Yes" if adding central air conditioning
+
+```{r}
+possible.homes <- housing.test
+possible.homes$predicted <- rf.preds
+
+possible.homes1k <- possible.homes %>%
+  filter(abs(predicted - SalePrice) <= 1000)
+
+possible.homes500 <- possible.homes %>%
+  filter(abs(predicted - SalePrice) <= 500)
+
+possible.homes100 <- possible.homes %>%
+  filter(abs(predicted - SalePrice) <= 100)
+
+possible.homes5k <- possible.homes %>%
+  filter(abs(predicted - SalePrice) <= 5000)
+
+
+possible.homes <- possible.homes %>%
+  filter(abs(predicted - SalePrice) <= 2000)
+
+homes <- housing.test
+homes$predicted <- gam.preds
+
+homes2k <- homes %>%
+  filter(abs(predicted - SalePrice) <= 2000)
+
+```
+
+
+```{r}
+price.calculator <- function(id, basement = 0, full.bath = "null", half.bath = "null", kitchen = 0, AC = 0) {
+  current.price <- possible.homes$SalePrice[id]
+  pred.price <- predict(rf, newdata = possible.homes[id,])
+  diff <- abs(current.price - pred.price)
+  
+  df.homes <- possible.homes
+  
+  if(!basement == 0) {
+    df.homes$BsmtFin.Type.1[id] <- basement
+  }
+  if(!full.bath == "null") {
+    df.homes$Full.Bath[id] <- full.bath
+  }
+  if(!half.bath == "null") {
+    df.homes$Half.Bath[id] <- half.bath
+  }
+  if(!kitchen == 0) {
+    df.homes$Kitchen.Qual[id] <- kitchen
+  }
+  if(!AC == 0) {
+    df.homes$Central.Air[id] <- AC
+  }
+  
+  updated.price <- predict(rf, newdata = df.homes[id])
+  
+  output <- data.frame(Current_Price = current.price,
+                       Current_Predicted_Price = pred.price,
+                       Updated_Price = updated.price)
+  print(output)
+  
+}
+```
+
+
+```{r}
+price.calculator(id = 10, full.bath = 3)
+```
+
+```{r}
+price.calculator2 <- function(id, basement = "no", full.bath = "no", half.bath = "no", kitchen = "no", AC = "no") {
+  current.price <- possible.homes$SalePrice[id]
+  pred.price <- predict(rf, newdata = possible.homes[id,])
+  diff <- abs(current.price - pred.price)
+  
+  df.basement <- possible.homes
+  df.fullbath <- possible.homes
+  df.halfbath <- possible.homes
+  df.kitchen <- possible.homes
+  df.AC <- possible.homes
+  
+  basement.lvl <- c("GLQ", "ALQ", "BLQ", "Rec", "LwQ", "Unf")
+  kitchen.lvl <- c(1, 2, 3, 4, 5)
+  
+  basement.plot <- c()
+  fullbath.plot <- c()
+  halfbath.plot <- c()
+  kitchen.plot <- c()
+  AC.plot <- c()
+  
+  if(basement == "yes") {
+    for(i in basement.lvl) {
+      df.basement$BsmtFin.Type.1[id] <- i
+      basement.plot[i] <- predict(rf, newdata = df.basement[id,])
+    }
+    df1 <- data.frame(rating = basement.lvl,
+                    Sale_Price = basement.plot)
+    print(qplot(x = rating, y = Sale_Price, data = df1) + geom_point() +
+      geom_point(aes(x = possible.homes$BsmtFin.Type.1[id], y = possible.homes$predicted[id]), col = I("red")))
+  }
+  
+  if(full.bath == "yes") {
+    for(i in 1:5) {
+      df.fullbath$Full.Bath[id] <- i
+      fullbath.plot[i] <- predict(rf, newdata = df.fullbath[id,])
+    }
+    df2 <- data.frame(number = c(1:5),
+                    Sale_Price = fullbath.plot)
+    print(qplot(x = number, y = Sale_Price, data = df2) + geom_point() +
+      geom_point(aes(x = possible.homes$Full.Bath[id], y = possible.homes$predicted[id]), col = I("red")))
+  }  
+  
+  if(half.bath == "yes") {
+    for(i in 1:3) {
+      df.halfbath$Half.Bath[id] <- i
+      halfbath.plot[i] <- predict(rf, newdata = df.halfbath[id,])
+    }
+    df3 <- data.frame(number = c(1:3),
+                    Sale_Price = halfbath.plot)
+    print(qplot(x = number, y = Sale_Price, data = df3) + geom_point() +
+      geom_point(aes(x = possible.homes$Half.Bath[id], y = possible.homes$predicted[id]), col = I("red")))
+  } 
+   
+  if(kitchen == "yes") {
+    for(i in kitchen.lvl) {
+      df.kitchen$Kitchen.Qual[id] <- i
+      kitchen.plot[i] <- predict(rf, newdata = df.kitchen[id,])
+    }
+    df4 <- data.frame(rating = kitchen.lvl,
+                    Sale_Price = kitchen.plot)
+    print(qplot(x = rating, y = Sale_Price, data = df4) + geom_point() +
+      geom_point(aes(x = possible.homes$Kitchen.Qual[id], y = possible.homes$predicted[id]), col = I("red")))
+  }
+  
+  if(AC == "yes") {
+    for(i in c("no", "yes")) {
+      df.AC$Central.Air[id] <- i
+      AC.plot[i] <- predict(rf, newdata = df.AC[id,])
+    }
+    df5 <- data.frame(Have_AC = c("no", "yes"),
+                    Sale_Price = AC.plot)
+    print(qplot(x = Have_AC, y = Sale_Price, data = df5) + geom_point() +
+      geom_point(aes(x = possible.homes$Central.Air[id], y = possible.homes$predicted[id]), col = I("red")))
+  }
+  
+  
+}
+```
+
+```{r}
+price.calculator2(id = 10, basement = "yes", full.bath = "yes", half.bath = "yes", kitchen = "yes", AC = "yes")
+```
+
+
+```{r}
+##Subset Data into comparison homes from the 2010 data
+# - Potentially take user input into what types of homes they are interested in (potentially a subset)
+
+##Select Subset of features and output plots that show bar charts of average sale price as a function of the upgrade feature
+# - For qualitative data use levels or categorize levels (general 1-3, major 5-7, extreme 8-10)
+# - This does not need to be feature for every node within the data, but what we feel is most salient (i.e. N >> some threshold)
+# - Mark plots with average expenditures to show level of commitment and expenditure
+
+## Based on the user input, output plots that show housing value as a function of of the upgrade feature for the specific 2010 house or subset of the houses
+
+## Select items with MAX housing price for that type of house and then output the suggestion (even if slightly unreasonable)
+
+```
+
+
+
+```{r}
+possible.homes %>%
+  select(BsmtFin.Type.1, Full.Bath, Half.Bath, Kitchen.Qual, Central.Air, SalePrice, predicted)
+```
+
+
+
+
+
+
+
+
+
+
+
