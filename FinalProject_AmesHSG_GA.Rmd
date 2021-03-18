@@ -1233,9 +1233,14 @@ price.calculator2(id = 10, basement = "yes", full.bath = "yes", half.bath = "yes
 
 
 ```{r}
+##Ingest informaiton from User to set baseline undertanding of home & understanding of type of renovations they desire to make
+# Items ask directly correspond to variables considered to be meaningful in predicting home value
+
+#check if as.doubles need to be as.factors?
+#ensure that ranges asked of user are correct as per housing.processed (@Andy similar to exercise we did earlier today)
+#Update nomenclature to either input "number" or "code"
 
 info.ingest <- function() {
-##Ingest informaiton from User to set baseline undertanding of home & understanding of type of renovations they desire to make
 writeLines("Renovation Calculator!
 We want to help you get the most bang for your buck.  Tell us a a bit about your property\n")
 
@@ -1265,7 +1270,7 @@ Somerst.	Somerset
 StoneBr.	Stone Brook
 Timber.	Timberland
 Veenker.	Veenker")
-neighborhood <- readline("Enter the code from the list above: ")
+neighborhood <- readline("Enter the code from the list above: ") #For some reason this isn't reading in, but feel free to adjust
 
 lot.area <- readline("What is total square footage of your lot?: ")
 lot.area <- as.double(lot.area)
@@ -1393,7 +1398,12 @@ home.details <- data.frame(Gr.Liv.Area = liv.area, Gr.Liv.Area.upgrd = liv.area.
 return(home.details)
 }
 ```
+
+
 ```{r}
+##Function that outputs dataframe containing user-input baseline home data and user-input upgrade requests
+#Function checks for NULL values (i.e. user doesn't want an upgrae): 0/'None' and updates the dataframe accordingly
+
 process.baseline <- function(home.baseline = NULL){
   home.upgrade <- home.baseline
   home.upgrade$Gr.Liv.Area <- home.upgrade$liv.area.upgrd
@@ -1402,7 +1412,7 @@ process.baseline <- function(home.baseline = NULL){
   home.upgrade$MS.SubClass <- home.upgrade$ms.class.upgrd
   home.upgrade$X2nd.Flr.SF <- home.upgrade$x2st.sf.upgrd
   home.upgrade$Bsmt.Qual <- home.upgrade$bsmt.qual.upgrd
-  home.upgrade$Full.Bath <- home.upgrade$Full.Bath + home.upgrade$full.bath.upgrd 
+  home.upgrade$Full.Bath <- home.upgrade$Full.Bath + home.upgrade$full.bath.upgrd #be careful how you reassign values as per question asked
   home.upgrade$Kitchen.Qual <- home.upgrade$ktchn.qual.upgrd
   home.upgrade$Utilities <- home.upgrade$utilities.upgrd
   home.upgrade$Lot.Area <- home.upgrade$lot.area.upgrd
@@ -1412,13 +1422,26 @@ return(home.upgrade) #
 
 
 ```{r}
+
+#Generate baseline dataframe from information per user input
 home.baseline <-info.ingest()
+#Generate upgrade information from user input
 home.upgrade <- process.baseline(home.baseline)
 
+#Calculate baseline predicted home value per user input
 gam.baseline.pred <- predict(gam.fit, newdata = home.baseline)
+
+#Calculate predicted upgraded home value per user input
 gam.upgrade.pred <- predict(gam.fit, newdata = home.upgrade)
 
+#Calculate House Value Delta
 value.delta <- gam.upgrade.pred - gam.baseline.pred
+
+percent.increase <- value.delta/gam.baseline.pred
+
+message <- paste("The changes you have proposed to make in your home upgrade have increased it's value by $", value.delta, "which is a", percent.increase,"% increase in value")
+
+print (message)
 ```
 
 
