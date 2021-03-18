@@ -703,7 +703,6 @@ rf.imp.plot <- varImpPlot(rf)
 imp.vars <- as.character(rownames(rf.imp.plot)[order(rf.imp.plot, decreasing = TRUE)])
 imp.vars <- imp.vars[c(80:158)]
 imp.vars
-rf$importance
 ```
 
 
@@ -1132,7 +1131,7 @@ price.calculator <- function(id, basement = 0, full.bath = "null", half.bath = "
     df.homes$Central.Air[id] <- AC
   }
   
-  updated.price <- predict(rf, newdata = df.homes[id])
+  updated.price <- predict(rf, newdata = df.homes[id,])
   
   output <- data.frame(Current_Price = current.price,
                        Current_Predicted_Price = pred.price,
@@ -1233,53 +1232,132 @@ price.calculator2(id = 10, basement = "yes", full.bath = "yes", half.bath = "yes
 
 
 ```{r}
-##Ingest informaiton from User to set baseline undertanding of home & understanding of type of renovations they desire to make
-# Items ask directly correspond to variables considered to be meaningful in predicting home value
+##Ingest information from User to set baseline understanding of home & understanding of type of renovations they desire to make
+# Item asks directly correspond to variables considered to be meaningful in predicting home value
 
 #check if as.doubles need to be as.factors?
 #ensure that ranges asked of user are correct as per housing.processed (@Andy similar to exercise we did earlier today)
 #Update nomenclature to either input "number" or "code"
 
 info.ingest <- function() {
+
+avgRow <- sapply(housing.test, findAvg)
+avgRow <- data.frame(avgRow)
+
 writeLines("Renovation Calculator!
-We want to help you get the most bang for your buck.  Tell us a a bit about your property\n")
+We want to help you get the most bang for your buck.  Tell us a a bit about your property!\n")
 
-writeLines("Tell us which neighborhood your home is in?")
-writeLines("Blmngtn.	Bloomington Heights
-Blueste.	Bluestem
-BrDale.	Briardale
-BrkSide.	Brookside
-ClearCr.	Clear Creek
-CollgCr.	College Creek
-Crawfor.	Crawford
-Edwards.	Edwards
-Gilbert.	Gilbert
-IDOTRR.	Iowa DOT and Rail Road
-MeadowV.	Meadow Village
-Mitchel.	Mitchell
-NAmes.	North Ames
-NoRidge.	Northridge
-NPkVill.	Northpark Villa
-NridgHt.	Northridge Heights
-NWAmes.	Northwest Ames
-OldTown.	Old Town
-SWISU.	South & West of Iowa State University
-Sawyer.	Sawyer
-SawyerW.	Sawyer West
-Somerst.	Somerset
-StoneBr.	Stone Brook
-Timber.	Timberland
-Veenker.	Veenker")
-neighborhood <- readline("Enter the code from the list above: ") #For some reason this isn't reading in, but feel free to adjust
 
-lot.area <- readline("What is total square footage of your lot?: ")
-lot.area <- as.double(lot.area)
+writeLines("
+Blmngtn   --- Bloomington Heights
+Blueste   --- Bluestem
+BrDale    --- Briardale
+BrkSide   --- Brookside
+ClearCr   --- Clear Creek
+CollgCr   --- College Creek
+Crawfor   --- Crawford
+Edwards   --- Edwards
+Gilbert   --- Gilbert
+IDOTRR    --- Iowa DOT and Rail Road
+MeadowV   --- Meadow Village
+Mitchel   --- Mitchell
+NAmes     --- North Ames
+NoRidge   --- Northridge
+NPkVill   --- Northpark Villa
+NridgHt   --- Northridge Heights
+NWAmes    --- Northwest Ames
+OldTown   --- Old Town
+SWISU     --- South & West of Iowa State University
+Sawyer    --- Sawyer
+SawyerW   --- Sawyer West
+Somerst   --- Somerset
+StoneBr   --- Stone Brook
+Timber    --- Timberland
+Veenker   --- Veenker")
+
+writeLines("\n")
+
+writeLines("Tell us which neighborhood your home is in.")
+writeLines("Enter the abbreviated neighborhood spelling corresponding to your neighborhood in the list above.") #For some reason this isn't reading in, but feel free to adjust
+neighborhood <- readline("Input: ")
+
+if(toupper(neighborhood) == "BLMNGTN") {
+  neighborhood <- "Blmngtn"
+} else if(toupper(neighborhood) == "BLUESTE") {
+  neighborhood <- "Blueste"
+} else if(toupper(neighborhood) == "BRDALE") {
+  neighborhood <- "BrDale"
+} else if(toupper(neighborhood) == "BRKSIDE") {
+  neighborhood <- "BrkSide"
+} else if(toupper(neighborhood) == "CLEARCR") {
+  neighborhood <- "ClearCr"
+} else if(toupper(neighborhood) == "COLLGCR") {
+  neighborhood <- "CollgCr"
+} else if(toupper(neighborhood) == "CRAWFOR") {
+  neighborhood <- "Crawfor"
+} else if(toupper(neighborhood) == "EDWARDS") {
+  neighborhood <- "Edwards"
+} else if(toupper(neighborhood) == "GILBERT") {
+  neighborhood <- "Gilbert"
+} else if(toupper(neighborhood) == "IDOTRR") {
+  neighborhood <- "IDOTRR"
+} else if(toupper(neighborhood) == "MEADOWV") {
+  neighborhood <- "MeadowV"
+} else if(toupper(neighborhood) == "MITCHEL") {
+  neighborhood <- "Mitchel"
+} else if(toupper(neighborhood) == "NAMES") {
+  neighborhood <- "Names"
+} else if(toupper(neighborhood) == "NORIDGE") {
+  neighborhood <- "NoRidge"
+} else if(toupper(neighborhood) == "NPKVILL") {
+  neighborhood <- "NPkVill"
+} else if(toupper(neighborhood) == "NRIDGHT") {
+  neighborhood <- "NridgHt"
+} else if(toupper(neighborhood) == "NWAMES") {
+  neighborhood <- "NWAmes"
+} else if(toupper(neighborhood) == "OLDTOWN") {
+  neighborhood <- "OldTown"
+} else if(toupper(neighborhood) == "SWISU") {
+  neighborhood <- "SWISU"
+} else if(toupper(neighborhood) == "SAWYER") {
+  neighborhood <- "Sawyer"
+} else if(toupper(neighborhood) == "SAWYERW") {
+  neighborhood <- "SawyerW"
+} else if(toupper(neighborhood) == "SOMERST") {
+  neighborhood <- "Somerst"
+} else if(toupper(neighborhood) == "STONEBR") {
+  neighborhood <- "StoneBr"
+} else if(toupper(neighborhood) == "TIMBER") {
+  neighborhood <- "Timber"
+} else if(toupper(neighborhood) == "VEENKER") {
+  neighborhood <- "Veenker"
+} else {
+  neighborhood <- "NAmes"
+}
+
+writeLines("\n")
+
+writeLines("What year was your home built?")
+year <- readline("Input: ")
+year <- as.integer(year)
+
+writeLines("\n")
+
+writeLines("What is the total square footage of your lot?")
+lot.area <- readline("Input: ")
+lot.area <- as.numeric(lot.area)
+
+writeLines("\n")
+
 writeLines("Are you looking to increase it's size(i.e. purchase adjacent property?")
-lot.area.upgrd <- readline("If yes enter the square-footage of your intended design.  If no enter 0: ")
-lot.area.upgrd <- as.double(lot.area.upgrd)
+writeLines("If yes, enter the additional square-footage of your intended increase (do not including current lot area). 
+           If no, enter '0'.")
+lot.area.upgrd <- readline("Input: ")
+lot.area.upgrd <- as.numeric(lot.area.upgrd)
+
+writeLines("\n")
 
 
-writeLines("Describe your house for us?")
 writeLines("20.	1-STORY 1946 & NEWER ALL STYLES
 30.	1-STORY 1945 & OLDER
 40.	1-STORY W/FINISHED ATTIC ALL AGES
@@ -1296,12 +1374,20 @@ writeLines("20.	1-STORY 1946 & NEWER ALL STYLES
 160.	2-STORY PUD - 1946 & NEWER
 180.	PUD - MULTILEVEL - INCL SPLIT LEV/FOYER
 190.	2 FAMILY CONVERSION - ALL STYLES AND AGES")
-ms.class <- readline("Enter the number from the list above: ")
-ms.class <- as.double(ms.class)
-writeLines("Are you looking to change to the following features?")
+
+writeLines("\n")
+
+writeLines("Describe your house design for us.")
+writeLines("Enter the number that corresponds to your design from the list above.")
+ms.class <- readline("Input: ")
+ms.class <- as.integer(ms.class)
+
+writeLines("\n")
+
+
 writeLines("40	1-STORY W/FINISHED ATTIC ALL AGES
 45.	1-1/2 STORY - UNFINISHED ALL AGES
-50.	1-1/2 STORY FINISHED ALL AGES 
+50.	1-1/2 STORY FINISHED ALL AGES
 75.	2-1/2 STORY ALL AGES
 80.	SPLIT OR MULTI-LEVEL
 85.	SPLIT FOYER
@@ -1311,90 +1397,364 @@ writeLines("40	1-STORY W/FINISHED ATTIC ALL AGES
 160.	2-STORY PUD - 1946 & NEWER
 180.	PUD - MULTILEVEL - INCL SPLIT LEV/FOYER
 190.	2 FAMILY CONVERSION - ALL STYLES AND AGES")
-ms.class.upgrd <- readline("If yes, enter the number from the list above.  If no enter 0: ")
-ms.class.upgrd <- as.double(ms.class.upgrd)
+writeLines("Are you looking to change your home design to one of the designs above?")
+writeLines("If yes, enter the number from the list above.  If no enter '0'.")
+ms.class.upgrd <- readline("Input: ")
+ms.class.upgrd <- as.integer(ms.class.upgrd)
+if(ms.class.upgrd == 0) {
+  ms.class.upgrd <- ms.class
+}
+
+writeLines("\n")
+
+
+writeLines("A --- Agriculture
+C --- Commercial
+FV --- Floating Village Residential
+I --- Industrial
+RH --- Residential High Density
+RL --- Residential Low Density
+RM --- Residential Medium Density")
+
+writeLines("\n")
 
 writeLines("How is your house zoned?")
-writeLines("A (agr)		Agriculture
-C (all)		Commercial
-FV	Floating Village Residential
-I (all)		Industrial
-RH	Residential High Density
-RL	Residential Low Density
-RM	Residential Medium Density")
+writeLines("Enter the abbreviation from the list above that corresponds to your house zone.")
+zone <- readline("Input: ")
+if(toupper(zone) == "A") {
+  zone <- "A (agr)"
+} else if(toupper(zone) == "C") {
+  zone <- "C (all)"
+} else if(toupper(zone) == "FV") {
+  zone <- "FV"
+} else if(toupper(zone) == "I") {
+  zone <- "I (all)"
+} else if(toupper(zone) == "RH") {
+  zone <- "RH"
+} else if(toupper(zone) == "RL") {
+  zone <- "RL"
+} else if(toupper(zone) == "RM") {
+  zone <- "RM"
+} else {
+  zone <- "RL"
+}
 
-zone <- readline("Enter the code from the list above: ")
+writeLines("\n")
 
-writeLines("What type of utilities does your home have?")
-writeLines("AllPub	All public Utilities (E,G,W,& S)	
-NoSewr	Electricity, Gas, and Water (Septic Tank)
-NoSeWa	Electricity and Gas Only")
-utilities <- readline("Enter the code from the list above: ")
-utilities.upgrd <- readline("Are you looking to add additional utitilieis?  If yes enter the code of what your end goal utilities are.  If no enter `None`: ")
+writeLines("What is the square footage of your total home living area?")
+liv.area <- readline("Input: ")
+liv.area <- as.numeric(liv.area)
+writeLines("Are you looking to increase it's size?
+If yes, enter the approximate square footage of the NEW addition's intended size.
+If you do not want to upgrade, enter '0'.")
+liv.area.upgrd <- readline("Input: ")
+liv.area.upgrd <- as.numeric(liv.area.upgrd)
 
+writeLines("\n")
 
-x1st.sf <- readline("What is the square footage of the first level in your house?: ")
-x1st.sf <- as.double(x1st.sf)
-x1st.sf.upgrd <- readline("Are you looking to increase it's size?  If yes enter the square-footage of your intended design.  If no enter 0: ")
-x1st.sf.upgrd <- as.double(x1st.sf.upgrd)
+writeLines("What is the apprx. square footage of the first level in your house?")
+x1st.sf <- readline("Input: ")
+x1st.sf <- as.numeric(x1st.sf)
+writeLines("Are you looking to increase it's size?
+If yes, enter the approximate square-footage of the NEW addition's intended size.
+If you do not want to upgrade, enter '0'.")
+x1st.sf.upgrd <- readline("Input: ")
+x1st.sf.upgrd <- as.numeric(x1st.sf.upgrd)
 
+writeLines("\n")
 
-liv.area <- readline("What is the square footage of your ground-level living room?: ")
-liv.area <- as.double(liv.area)
-liv.area.upgrd <- readline("Are you looking to increase it's size?  If yes enter the square-footage of your intended design.  If no enter 0: ")
-liv.area.upgrd <- as.double(liv.area.upgrd)
+writeLines("What is the apprx. square footage of the second level in your house?: ")
+x2st.sf <- readline("Input: ")
+x2st.sf <- as.numeric(x2st.sf)
+writeLines("Are you looking to increase it's size?
+If yes, enter the approximate square-footage of the NEW addtion's intended size.
+If you do not want to upgrade, enter 0.")
+x2st.sf.upgrd <- readline("Input: ")
+x2st.sf.upgrd <- as.numeric(x2st.sf.upgrd)
 
+writeLines("\n")
 
-x2st.sf <- readline("What is the square footage of the second level in your house?: ")
-x2st.sf <- as.double(x2st.sf)
-x2st.sf.upgrd <- readline("Are you looking to increase it's size?  If yes enter the square-footage of your intended design.  If no enter 0: ")
-x2st.sf.upgrd <- as.double(x2st.sf.upgrd)
+writeLines("Enter the # size of your garage in car capacity, or enter '0' if you do not have a garage.
+(ie. if you have a two car garage enter '2').")
+garage <- readline("Input: ")
+garage <- as.integer(garage)
 
+writeLines("\n")
+
+if(garage == 0) {
+  garage.area <- 0
+  garage.type <- "None"
+} else {
+  writeLines("What kind of garage do you have?")
+  writeLines("2Types --- More than one type of garage
+Attchd	--- Attached to home
+Basment --- Basement Garage
+BuiltIn --- Built-In (Garage part of house - typically has room above garage)
+CarPort --- Car Port
+Detchd --- Detached from home
+None	--- No Garage")
+  writeLines("Enter the abbreviated code closest to your garage type.")
+  garage.type <- readline("Input: ")
+  if(toupper(garage.type) == "2TYPES") {
+    garage.type <- "2Types"
+  } else if(toupper(garage.type) == "ATTCHD") {
+    garage.type <- "Attchd"
+  } else if(toupper(garage.type) == "BASMENT") {
+    garage.type <- "Basment"
+  } else if(toupper(garage.type) == "BUILTIN") {
+    garage.type <- "BuiltIn"
+  } else if(toupper(garage.type) == "CARPORT") {
+    garage.type <- "CarPort"
+  } else if(toupper(garage.type) == "DETCHD") {
+    garage.type <- "Detchd"
+  } else {
+    garage.type <- "Attchd"
+  }
+  if(garage == 1) {
+    garage.area <- 300
+  } else if(garage == 2) {
+    garage.area <- 518
+  } else if(garage == 3) {
+    garage.area <- 811
+  } else if(garage == 4) {
+    garage.area <- 960
+  } else if(garage == 5) {
+    garage.area <- 1184
+  } else {
+    garage.area <- 450
+  }
+}
+
+writeLines("\n")
 
 writeLines("What would you say is the overall quality of your home?")
 writeLines("10.     Very Excellent \n 9.	Excellent \n 8.	Very Good \n 7.	Good \n 6.	Above Average \n 5.	Average \n 4.	Below Average \n 3.	Fair  \n 2.	Poor  \n 1.	Very Poor")
-overall.qual <- readline("Enter the number from the list above: ")
-overall.qual <- as.double(overall.qual)
-overall.qual.upgrd <- readline("Are you looking to improve the quality?  If yes, enter the number from the list above.  If no enter 0: ")
-overall.qual.upgrd <- as.double(overall.qual.upgrd)
+writeLines("Enter the number from the list above.")
+overall.qual <- readline("Input: ")
+overall.qual <- as.integer(overall.qual)
 
+writeLines("\n")
+
+writeLines("Are you looking to improve the overall quality of your home?
+If yes, enter the number from the list above you want your home to be at.
+If no enter '0'.")
+overall.qual.upgrd <- readline("Input: ")
+overall.qual.upgrd <- as.numeric(overall.qual.upgrd)
+
+writeLines("\n")
+
+if(overall.qual %in% c(1,2)) {
+  exter.qual <- 1
+} else if(overall.qual %in% c(3,4)) {
+  exter.qual <- 2
+} else if(overall.qual %in% c(5,6)) {
+  exter.qual <- 3
+} else if(overall.qual %in% c(7,8)) {
+  exter.qual <- 4
+} else if(overall.qual %in% c(9,10)) {
+  exter.qual <- 5
+} 
+
+writeLines("Enter the number of fireplaces in your home (enter '0' if none).")
+fire <- readline("Input: ")
+fire <- as.integer(fire)
+
+writeLines("\n")
+
+if(!fire == 0) {
+  writeLines("How would you rate the overall quality of your fireplace(s)?")
+  writeLines("5. Excellent
+4. Good
+3. Typical/Average
+2. Fair
+1. Poor")
+  writeLines("Enter the number that corresponds to your rating from the list above.")
+  fire.qual <- readline("Input: ")
+  fire.qual <- as.integer(fire.qual)
+}
+
+writeLines("\n")
 
 writeLines("What would you say is the overall quality of your kitchen?")
-writeLines("5. Ex	Excellent
-4. Gd	Good
-3. TA	Typical/Average
-2. Fa	Fair
-1. Po	Poor")
-ktchn.qual <- readline("Enter the code from the list above: ")
+writeLines("5. Excellent
+4. Good
+3. Typical/Average
+2. Fair
+1. Poor")
+writeLines("Enter the number that corresponds to your rating from the list above.")
+ktchn.qual <- readline("Input: ")
 ktchn.qual <- as.integer(ktchn.qual)
-ktchn.qual.upgrd <- readline("Are you looking to improve the quality of your kitchen?\nIf yes, enter the target quality from the list.  If no enter `None`: ")
-ktchn.qual.upgrd <- as.integer(ktchn.qual.upgrd)
 
-writeLines("What would you say is the overall quality of your basement (if you have one) with respect to ceiling height")
-writeLines("5. Ex	Excellent (100+ inches)	
-4. Gd	Good (90-99 inches)
-3. TA	Typical (80-89 inches)
-2. Fa	Fair (70-79 inches)
-1. Po	Poor (<70 inches)
+writeLines("\n")
+
+writeLines("5. Excellent
+4. Good
+3. Typical/Average
+2. Fair
+1. Poor")
+writeLines("Are you looking to improve the quality of your kitchen?
+If yes, enter the target quality (#) from the list above that represents where you would like your kitchen to be. 
+If no renovation is needed, enter `None`.")
+ktchn.qual.upgrd <- readline("Input: ")
+if(toupper(ktchn.qual.upgrd) == "NONE") {
+  ktchn.qual.upgrd <- ktchn.qual
+} else {
+  ktchn.qual.upgrd <- as.integer(ktchn.qual.upgrd)
+}
+
+writeLines("\n")
+
+writeLines("How would you rate your basement?")
+writeLines("
+6 --- Good living quarters
+5 --- Average living quarters
+4 --- Below average living quarters
+3 --- Average Rec Room
+2 --- Low Quality
+1 --- Unfinished
+None --- I don't have a basement")
+writeLines("Enter the # rating for your basement, or 'None' if you do not have a basement.")
+basement.fin <- readline("Input: ")
+
+if(toupper(basement.fin) == "NONE") {
+  basement <- "None"
+} else {
+  basement.fin <- as.integer(basement.fin)
+  if (basement.fin == 1) {
+    basement <- "Unf"
+  } else if(basement.fin == 2) {
+    basement <- "LwQ"
+  } else if(basement.fin == 3) {
+    basement <- "Rec"
+  } else if(basement.fin == 4) {
+    basement <- "BLQ"
+  } else if(basement.fin == 5) {
+    basement <- "ALQ"
+  } else {
+    basement <- "GLQ"
+  } 
+}
+
+
+writeLines("What is the ceiling height of your basement?")
+writeLines("5. (100+ inches)	
+4. (90-99 inches)
+3. (80-89 inches)
+2. (70-79 inches)
+1. (<70 inches)
 None	No Basement")
-bsmt.qual <- readline("Enter the code from the list above: ")
-bsmt.qual <- as.integer(bsmt.qual)
-bsmt.qual.upgrd <- readline("Are you looking to improve the height of your basement?\nIf yes, enter the target grade from the list.  If no enter `None`: ")
+writeLines("Enter the number from the list above that corresponds to the approximate height.
+Enter 'None' if you do not have a basement.")
+bsmt.qual <- readline("Input: ")
+if(toupper(bsmt.qual) == "NONE") {
+  bsmt.qual <- "None"
+} else {
+  bsmt.qual <- as.integer(bsmt.qual)
+}
+# bsmt.qual.upgrd <- readline("Are you looking to improve the height of your basement?\nIf yes, enter the target grade from the list.  If no enter `None`: ")
+# if(!toupper(bsmt.qual.upgrd) == "NONE") {
+#   bsmt.qual.upgrd <- as.integer(bsmt.qual.upgrd)
+# }
 
+writeLines("\n")
 
-full.bath <- readline("How many full baths do you have on the first and/or second floors of our home?")
+writeLines("How many full bathrooms do you have on the first and/or second floors of your home?
+(do not include HALF bathrooms)")
+full.bath <- readline("Input: ")
 full.bath <- as.integer(full.bath)
-full.bath.upgrd <- readline("Are you looking to increase the number of full baths on these floors?\nIf yes enter the number of bathrooms you wish to add.  If no enter 0: ")
+
+writeLines("\n")
+
+writeLines("Are you looking to increase the number of full baths on these floors?
+If yes, enter the number of bathrooms you wish to add. If no enter '0'.")
+full.bath.upgrd <- readline("Input: ")
 full.bath.upgrd <- as.integer(full.bath.upgrd)
 
-home.details <- data.frame(Gr.Liv.Area = liv.area, Gr.Liv.Area.upgrd = liv.area.upgrd, 
-                           Overall.Qual = overall.qual, overall.qual.upgrd = overall.qual.upgrd, 
-                           X1st.Flr.SF = x1st.sf, x1st.sf.upgrd = x1st.sf.upgrd, MS.SubClass = ms.class, 
-                           ms.class.upgrd = ms.class.upgrd, X2nd.Flr.SF = x2st.sf, x2st.sf.upgrd = x2st.sf.upgrd, 
-                           Bsmt.Qual = bsmt.qual,bsmt.qual.upgrd = bsmt.qual.upgrd, MS.Zoning = zone,
-                           Full.Bath = full.bath,full.bath.upgrd = full.bath.upgrd,Kitchen.Qual = ktchn.qual,
-                           ktchn.qual.upgrd = ktchn.qual.upgrd,Neighborhood = neighborhood,Utilities = utilities,
-                           utilities.upgrd = utilities.upgrd,Lot.Area = lot.area,lot.area.upgrd = lot.area.upgrd)
+writeLines("\n")
+
+writeLines("How many half bathrooms do you have on the first and/or second floors of your home?
+(ie. if you have two half bathrooms enter '2')")
+half.bath <- readline("Input: ")
+half.bath <- as.integer(full.bath)
+
+writeLines("\n")
+
+writeLines("Are you looking to increase the number of half bathrooms on these floors? 
+If yes enter the number of bathrooms you wish to add.
+If no enter '0'.")
+half.bath.upgrd <- readline("Input: ")
+half.bath.upgrd <- as.integer(half.bath.upgrd)
+
+writeLines("\n")
+
+writeLines("What type of utilities does your home have?")
+writeLines("AllPub --- All public Utilities (E,G,W,& S)	
+NoSewr --- Electricity, Gas, and Water (Septic Tank)
+NoSeWa --- Electricity and Gas Only")
+writeLines("Enter the code from the list above that corresponds to your utilities.")
+utilities <- readline("Input: ")
+if(toupper(utilities) == "NOSEWR") {
+  utilities <- "NoSewr"
+} else if(toupper(utilities) == "NOSEWA") {
+  utilities <- "NoSeWa"
+} else {
+  utilities <- "AllPub"
+}
+
+writeLines("\n")
+  
+writeLines("AllPub --- All public Utilities (E,G,W,& S)	
+NoSewr --- Electricity, Gas, and Water (Septic Tank)
+NoSeWa --- Electricity and Gas Only")
+writeLines("Are you looking to add or change utilities?
+If yes, enter the code for the utilities are from the list above. If no enter `None`.")
+utilities.upgrd <- readline("Input: ")
+if(toupper(utilities.upgrd) == "NONE") {
+  utilities.upgrd <- utilities
+} else {
+    if(toupper(utilities.upgrd) == "NOSEWR") {
+      utilitie.upgrd <- "NoSewr"
+    } else if(toupper(utilities.upgrd) == "NOSEWA") {
+      utilities.upgrd <- "NoSeWa"
+    } else {
+      utilities.upgrd <- "AllPub"
+    }
+}
+
+writeLines("\n")
+
+writeLines("Does your home have central air conditioning?")
+writeLines("Enter 'Y' if yes, or 'N' if no.")
+ac <- readline("Input: ")
+ac <- toupper(ac)
+writeLines("Are you looking to add central air conditioning to your home?
+Enter 'Y' if yes, or 'N' if no.")
+ac.upgrd <- readline("Input: ")
+if(toupper(ac.upgrd) == "N") {
+  ac.upgrd <- ac
+} else {
+  ac.upgrd <- "Y"
+}
+
+home.details <- data.frame(Year.Built = year,
+                           Gr.Liv.Area = liv.area, liv.area.upgrd = liv.area.upgrd, 
+                           Overall.Qual = overall.qual, overall.qual.upgrd = overall.qual.upgrd,
+                           Exter.Qual = exter.qual,
+                           X1st.Flr.SF = x1st.sf, x1st.sf.upgrd = x1st.sf.upgrd,
+                           MS.SubClass = ms.class, 
+                           ms.class.upgrd = ms.class.upgrd, 
+                           X2nd.Flr.SF = x2st.sf, x2st.sf.upgrd = x2st.sf.upgrd, 
+                           Bsmt.Qual = bsmt.qual, BsmtFin.Type.1 = basement,
+                           MS.Zoning = zone,
+                           Fireplaces = fire, Fireplace.Qu = fire.qual,
+                           Full.Bath = full.bath, full.bath.upgrd = full.bath.upgrd,
+                           Half.Bath = half.bath, half.bath.upgrd = half.bath.upgrd,
+                           Central.Air = ac, ac.upgrade = ac.upgrd,
+                           Kitchen.Qual = ktchn.qual, ktchn.qual.upgrd = ktchn.qual.upgrd,
+                           Neighborhood = neighborhood,
+                           Garage.Cars = garage, Garage.Type = garage.type, Garage.Area = garage.area,
+                           Utilities = utilities, utilities.upgrd = utilities.upgrd,
+                           Lot.Area = lot.area,lot.area.upgrd = lot.area.upgrd)
 return(home.details)
 }
 ```
@@ -1406,17 +1766,18 @@ return(home.details)
 
 process.baseline <- function(home.baseline = NULL){
   home.upgrade <- home.baseline
-  home.upgrade$Gr.Liv.Area <- home.upgrade$liv.area.upgrd
+  home.upgrade$Lot.Area <- home.upgrade$Lot.Area + home.upgrade$lot.area.upgrd
+  home.upgrade$Gr.Liv.Area <- home.upgrade$Gr.Liv.Area + home.upgrade$liv.area.upgrd
   home.upgrade$Overall.Qual <- home.upgrade$overall.qual.upgrd
-  home.upgrade$X1st.Flr.SF <- home.upgrade$x1st.sf.upgrd
+  home.upgrade$X1st.Flr.SF <- home.upgrade$X1st.Flr.SF + home.upgrade$x1st.sf.upgrd
+  home.upgrade$X2nd.Flr.SF <- home.upgrade$X2nd.Flr.SF + home.upgrade$x2st.sf.upgrd
   home.upgrade$MS.SubClass <- home.upgrade$ms.class.upgrd
-  home.upgrade$X2nd.Flr.SF <- home.upgrade$x2st.sf.upgrd
-  home.upgrade$Bsmt.Qual <- home.upgrade$bsmt.qual.upgrd
-  home.upgrade$Full.Bath <- home.upgrade$Full.Bath + home.upgrade$full.bath.upgrd #be careful how you reassign values as per question asked
+  home.upgrade$Full.Bath <- home.upgrade$Full.Bath + home.upgrade$full.bath.upgrd
+  home.upgrade$Half.Bath <- home.upgrade$Half.Bath + home.upgrade$half.bath.upgrd
   home.upgrade$Kitchen.Qual <- home.upgrade$ktchn.qual.upgrd
   home.upgrade$Utilities <- home.upgrade$utilities.upgrd
-  home.upgrade$Lot.Area <- home.upgrade$lot.area.upgrd
-return(home.upgrade) #
+  home.upgrade$Central.Air <- home.upgrade$ac.upgrd
+return(home.upgrade) 
 }
 ```
 
@@ -1443,15 +1804,6 @@ message <- paste("The changes you have proposed to make in your home upgrade hav
 
 print (message)
 ```
-
-
-
-```{r}
-possible.homes %>%
-  select(BsmtFin.Type.1, Full.Bath, Half.Bath, Kitchen.Qual, Central.Air, SalePrice, predicted)
-```
-
-
 
 
 
