@@ -1,7 +1,7 @@
 ---
+title: "FinalProject_AmesHSG"
 author: "Jaih, Katie, Andy, Anum"
 date: "3/12/2021"
-title: "FinalProject_AmesHSG"
 output:
   html_document:
     toc: yes
@@ -33,7 +33,7 @@ library(GGally)
 library(gridExtra) # for grid.arrange
 ```
 
-## Section 1: Data Clean-Up and Exploration
+# Section 1: Data Clean-Up and Exploration
 
 <font color="#800000">
 We are going to examine the housing data-set to pick out some key characteristics, trends and summaries for our model evaluations with the eventual goal of developing a sales price prediction model that can be used improve  price listings and clients advice on home improvement projects. The following section will aim to clean-up the data for our use and identify general trends in sales prices across time, neighborhood, and other key home characteristics. 
@@ -291,6 +291,7 @@ housing.train %>%
 ```
 
 
+
 <font color="#800000">
 The dataset covers 2006-2010 which falls within the years of the Great Recession. The Great Recession was a period of marked general decline observed in national economies globally that began in December 2007 and ended in June 2009.  Home prices fell approximately 30 percent, on average, from their mid-2006 peak to mid-2009. Source URL: https://www.federalreservehistory.org/essays/great-recession-of-200709.
 
@@ -504,8 +505,8 @@ findAvg<-function(x){
 }
 ```
 
-## Section 2: Methodology
-# Inital Linear Regressions 
+# Section 2: Methodology
+## Inital Linear Regressions 
 
 <font color="#800000">
 As an initial simple model we will consider a few variables to be important determinants of the price of a property:
@@ -626,7 +627,7 @@ grid.arrange(plot_RSS, plot_R_sq,plot_AIC,plot_BIC, ncol=2,nrow=2)
 coef(regfit.fwd, which.min(regfit.summary$bic))
 ```
 
-# Lasso Model
+## Lasso Model
 
 ```{r}
 library(glmnet)
@@ -669,7 +670,7 @@ paste("Mean RelErr: ", mean(calcRelErr(preds=lasso.pred, y[test])))
 ```
 
 
-# Random Forests
+## Random Forests
 ```{r}
 set.seed(1)
 rf <- randomForest(SalePrice ~ .,data=housing.train, mtry=25, importance=TRUE)
@@ -696,7 +697,7 @@ paste("Mean RelErr: ", mean(calcRelErr(preds=rf.preds, actual=housing.test$SaleP
 
 
 ```
-# Random Forest Variables
+## Random Forest Variables
 ```{r}
 #I think this is redundant information
 rf.imp.plot <- varImpPlot(rf)
@@ -744,7 +745,7 @@ According to the tuning model, the random forest model that results in the lowes
 
 ```
 
-# GAM Model
+## GAM Model
 
 ```{r}
 library(gam)
@@ -888,7 +889,7 @@ plot.smoothCV <- function(smoothcv.err, K, title.text = "", facet = FALSE,
 }
 ```
 
-# Finding models with lowest CV Error
+### Finding models with lowest CV Error
 
 <font color="#800000">
 As per our earlier analyses, the following variables seem to be key components in evaluating a GAM model:
@@ -1068,7 +1069,7 @@ paste("RMSE: ", lm.RMSE.2)
 paste("Mean RelErr: ", mean(calcRelErr(preds=lm.preds.2, housing.test$SalePrice)))
 ```
 
-## Section 3: Key Findings/Take Aways
+# Section 3: Key Findings/Take Aways
 
 # Home Improvement - Sale Price Calculator
 
@@ -1107,6 +1108,11 @@ homes2k <- homes %>%
 
 ```
 
+```{r}
+y = readline(prompt="Input variable ")
+typeof(y)
+
+```
 
 ```{r}
 price.calculator <- function(id, basement = 0, full.bath = "null", half.bath = "null", kitchen = 0, AC = 0) {
@@ -1233,7 +1239,7 @@ price.calculator2(id = 10, basement = "yes", full.bath = "yes", half.bath = "yes
 
 
 ```{r}
-##Ingest informaiton from User to set baseline undertanding of home & understanding of type of renovations they desire to make
+##Ingest information from User to set baseline undertanding of home & understanding of type of renovations they desire to make
 # Items ask directly correspond to variables considered to be meaningful in predicting home value
 
 #check if as.doubles need to be as.factors?
@@ -1398,63 +1404,6 @@ home.details <- data.frame(Gr.Liv.Area = liv.area, Gr.Liv.Area.upgrd = liv.area.
 return(home.details)
 }
 ```
-
-
-```{r}
-##Function that outputs dataframe containing user-input baseline home data and user-input upgrade requests
-#Function checks for NULL values (i.e. user doesn't want an upgrae): 0/'None' and updates the dataframe accordingly
-
-process.baseline <- function(home.baseline = NULL){
-  home.upgrade <- home.baseline
-  home.upgrade$Gr.Liv.Area <- home.upgrade$liv.area.upgrd
-  home.upgrade$Overall.Qual <- home.upgrade$overall.qual.upgrd
-  home.upgrade$X1st.Flr.SF <- home.upgrade$x1st.sf.upgrd
-  home.upgrade$MS.SubClass <- home.upgrade$ms.class.upgrd
-  home.upgrade$X2nd.Flr.SF <- home.upgrade$x2st.sf.upgrd
-  home.upgrade$Bsmt.Qual <- home.upgrade$bsmt.qual.upgrd
-  home.upgrade$Full.Bath <- home.upgrade$Full.Bath + home.upgrade$full.bath.upgrd #be careful how you reassign values as per question asked
-  home.upgrade$Kitchen.Qual <- home.upgrade$ktchn.qual.upgrd
-  home.upgrade$Utilities <- home.upgrade$utilities.upgrd
-  home.upgrade$Lot.Area <- home.upgrade$lot.area.upgrd
-return(home.upgrade) #
-}
-```
-
-
-```{r}
-
-#Generate baseline dataframe from information per user input
-home.baseline <-info.ingest()
-#Generate upgrade information from user input
-home.upgrade <- process.baseline(home.baseline)
-
-#Calculate baseline predicted home value per user input
-gam.baseline.pred <- predict(gam.fit, newdata = home.baseline)
-
-#Calculate predicted upgraded home value per user input
-gam.upgrade.pred <- predict(gam.fit, newdata = home.upgrade)
-
-#Calculate House Value Delta
-value.delta <- gam.upgrade.pred - gam.baseline.pred
-
-percent.increase <- value.delta/gam.baseline.pred
-
-message <- paste("The changes you have proposed to make in your home upgrade have increased it's value by $", value.delta, "which is a", percent.increase,"% increase in value")
-
-print (message)
-```
-
-
-
-```{r}
-possible.homes %>%
-  select(BsmtFin.Type.1, Full.Bath, Half.Bath, Kitchen.Qual, Central.Air, SalePrice, predicted)
-```
-
-
-
-
-
 
 
 
