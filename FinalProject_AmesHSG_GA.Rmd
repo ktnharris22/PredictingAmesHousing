@@ -495,14 +495,18 @@ ggcorrplot(corr.sub.house.dp, hc.order = TRUE, outline.color = 'white', lab = TR
 calcRelErr <- function(preds, actual) {
   (preds - actual)/actual
 }
+   
 
-findAvg<-function(x){
-  if(typeof(x) == "character" || typeof(x)=="integer"){
-    names(which.max(table(x)))
-  }else {
-    mean(x)
-  }
+getbaselineRow<-function(subclass, neighborhood, value){
+   sub.indexes<-which(housing.train$MS.SubClass == subclass)
+   nb.indexes<- which(housing.train$Neighborhood == neighborhood)
+   val.indexes <- which(housing.train$SalePrice >= value - 10000 & housing.train$SalePrice <= value + 10000)
+   
+   commonList <- intersect(sub.indexes,intersect(nb.indexes,val.indexes))
+   train.index <- sample(commonList, 1)
+   housing.train[train.index,]
 }
+
 ```
 
 # Section 2: Methodology
