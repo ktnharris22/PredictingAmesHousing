@@ -1400,7 +1400,7 @@ process.baseline <- function(home.baseline = NULL){
   home.upgrade$Kitchen.Qual <- home.upgrade$ktchn.qual.upgrd
   home.upgrade$Utilities <- home.upgrade$utilities.upgrd
   home.upgrade$Lot.Area <- home.upgrade$lot.area.upgrd
-return(home.upgrade)
+return(home.upgrade) #
 }
 ```
 
