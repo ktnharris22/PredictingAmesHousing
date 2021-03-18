@@ -498,13 +498,19 @@ calcRelErr <- function(preds, actual) {
    
 
 getbaselineRow<-function(subclass, neighborhood, value){
-   sub.indexes<-which(housing.train$MS.SubClass == subclass)
-   nb.indexes<- which(housing.train$Neighborhood == neighborhood)
-   val.indexes <- which(housing.train$SalePrice >= value - 10000 & housing.train$SalePrice <= value + 10000)
+   sub.indexes<-which(housing.processed$MS.SubClass == subclass)
+   nb.indexes<- which(housing.processed$Neighborhood == neighborhood)
+   val.indexes <- which(housing.processed$SalePrice >= value - 10000 & housing.processed$SalePrice <= value + 10000)
    
    commonList <- intersect(sub.indexes,intersect(nb.indexes,val.indexes))
-   train.index <- sample(commonList, 1)
-   housing.train[train.index,]
+   
+   if (length(commonList) > 0){
+     train.index <- sample(commonList, 1)
+   } else {
+     train.index <- sample(nrow(housing.processed), 1)
+   }
+   
+  housing.train[train.index,]
 }
 
 ```
@@ -1811,11 +1817,15 @@ return(return.list)
 ```
 
 
+```{r}
+#Lets test with some 2010 data
+predict()
 
 ```{r}
 test.house <- info.ingest()
 ```
 
+```
 
 
 ```{r}
@@ -1828,13 +1838,5 @@ home.upgrade <- process.baseline(home.baseline)
 
 
 ```
-
-
-
-
-
-
-
-
 
 
