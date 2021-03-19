@@ -1513,7 +1513,8 @@ calcRenoValRF <- function(origHouse, remodeledHouse){
   
   value.delta <- remHomeVal- origHomeVal
   percent.increase <- value.delta/origHomeVal
-  message <- paste("The changes you have proposed to make in your home upgrade have increased it's value by $", value.delta, "which is a", percent.increase,"% increase in value")
+  percent.increase <- percent.increase * 100
+  message <- paste("The changes you have proposed to make in your home upgrade have increased it's value by $", round(value.delta, digits = 2), "which is a", round(percent.increase, digits = 2),"% increase in value")
   print (message)
 }
 
@@ -1523,7 +1524,8 @@ calcRenoValGAM <- function(origHouse, remodeledHouse){
   
   value.delta <- remHomeVal- origHomeVal
   percent.increase <- value.delta/origHomeVal
-  message <- paste("The changes you have proposed to make in your home upgrade have increased it's value by $", value.delta, "which is a", percent.increase,"% increase in value")
+  percent.increase <- percent.increase * 100
+  message <- paste("The changes you have proposed to make in your home upgrade have increased it's value by $", round(value.delta, digits = 2), "which is a", round(percent.increase, digits = 2),"% increase in value")
   print (message)
 }
 
@@ -1531,9 +1533,18 @@ calcRenoValGAM <- function(origHouse, remodeledHouse){
 ```
 
 
+# Resources
 
-
-
-
-
-
+- https://www.federalreservehistory.org/essays/great-recession-of-200709
+- https://rpubs.com/sknapp/667278
+- https://medium.com/human-in-a-machine-world/mae-and-rmse-which-metric-is-better-e60ac3bde13d
+- https://stackoverflow.com/questions/51449243/how-to-replace-empty-string-with-na-in-r-dataframe
+- https://stackoverflow.com/questions/8161836/how-do-i-replace-na-values-with-zeros-in-an-r-dataframe
+- https://stackoverflow.com/questions/24829674/r-random-forest-error-type-of-predictors-in-new-data-do-not-match
+- https://www.listendata.com/2014/11/random-forest-with-r.html#Methods-to-find-Best-Split
+- https://petolau.github.io/Analyzing-double-seasonal-time-series-with-GAM-in-R/
+- https://www.usinflationcalculator.com/
+- https://www.homeadvisor.com/cost/additions-and-remodels/build-an-addition/
+- https://kitchenremodeling.roofingcontractorcompany.com/iowa/ames-ia/
+- https://www.manta.com/cost-bathroom-remodeling-ames-ia
+- https://patch.com/iowa/des-moines/iowa-homeowners-remodeling-costs-5-improvement-projects
