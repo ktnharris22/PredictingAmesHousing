@@ -31,13 +31,18 @@ options(scipen = 4)  # Suppresses scientific notation
 library(tidyverse)
 library(GGally)
 library(gridExtra) # for grid.arrange
+library(ggridges)
 ```
 
-# Section 1: Data Clean-Up and Exploration
 
+#Introduction
 <font color="#800000">
-We are going to examine the housing data-set to pick out some key characteristics, trends and summaries for our model evaluations with the eventual goal of developing a sales price prediction model that can be used improve  price listings and clients advice on home improvement projects. The following section will aim to clean-up the data for our use and identify general trends in sales prices across time, neighborhood, and other key home characteristics. 
+We are going to examine the Ames Housing data-set to pick out some key characteristics, trends and summaries for our model evaluations with the eventual goal of developing a sales price prediction model that can be used to  improve  price listings. In doing so, we will subset our data to include houses sold in 2010 only, split it into test and training data-sets and evaluate key characteristics as a predictor of Sales Price to create an accurate model with the lowest error. Our final step will be to use our best model to create a function which will help advise any clients looking to evaluate the prices of clients home improvement or renovation projects. 
+
+The following section will aim to clean-up the data for our use and identify general trends in sales prices across time, neighborhood, and other key home characteristics so that we can readily use the salient features for our prediction model. 
 </font>
+
+# Section 1: Exploratory Data Analysis  
 
 ```{r}
 #read in data
@@ -90,7 +95,9 @@ We see 43 character variables which include:
 - Central.Air
 - Kitchen.Qual
 
-The dataset also has `r sum(is.na(housing.raw))` NA values. However, in most cases this corresponds to the characteristic not being present in the house; therefore, we will proceed to change these 'NA' values to "None" where it makes sense to not lose any relevant data. e.g --> Pool.QC
+The dataset also has `r sum(is.na(housing.raw))` NA values. However, in most cases this corresponds to the characteristic not being present in the house; therefore, we will proceed to change these 'NA' values to "None" where it makes sense to not lose any relevant data. e.g --> Pool.QC.
+
+After cleaning the data, we are will split it into train and test; whereby, the testing data is based on houses purchased in 2010 and the training data will be those house purchased before 2010. 
 </font>
 
 ```{r}
@@ -171,36 +178,7 @@ housing.test <- housing.processed[test,]
 
 
 
-* only 198 entries have data for paved 
-
-* Replaced all NA's with "NONE", so as to ensure that R counts it as a category
-
-* Created levels for all data with c("Ex", "Gd", "TA", "Fa", "Po", "None"): BsmtCond, BsmtExposure, FireplaceQu, GarageQual, GarageCond, BsmtQual
-- Corr:
-- GarageQual, GarageCond
-
-* Created levels for all data with  c("GLQ", "ALQ", "BLQ", "REC", "LwQ", "UNF", "None"): BsmtFinType1, BsmtFinType2
-
-* ?Need to look at BsmtFinType1, BsmtFinType2 relationship, because it seems that unf/0 is for houses with one basement area
-
-* Created levels for all data with c("Ex", "Gd", "TA", "Fa", "Po"): HeatingQC, KitchenQual, ExterQual, ExterCond
-
-* Created levels for all data with  c("Typ", "Min1", "Min2", "Mod", "Maj1", "Maj2", "Sev", "Sal"): Functional
-
-* Created levels for all data with  c("Fin", "RFn", "Unf", "None"): GarageFinish
-
-* Created levels for all data with  c("Ex", "Gd", "TA", "Fa", "None"): PoolQC
-
-* Created levels for all data with  c("Reg","IR1","IR2","IR3"): LotShape
-
-* Created levels for all data with  c("Gtl","Mod","Sev"): LandSlope
-
-* Created levels for all data with  c(10, 9, 8, 7, 6, 5, 4, 3, 2, 1): OverallQual, OverallCond
-
-* Separate train and test
-
 # Initial Data Plots and Summaries
-
 <font color="#800000">
 Now that we've done some cleaning; let's go on to explore our main dependent variable: SalePrice. 
 </font>
@@ -215,87 +193,92 @@ qplot(housing.train$SalePrice, col = I("black"), fill = I("forest green")) +
 ```
 
 <font color="#800000">
-The data seems to have a slight right skewed distribution with a mean pricing of 184,386. When modeling this outcome, a strong argument can be made that the price should be log-transformed. A logarithmic price scale uses the percentage of change to plot data points, so, the scale prices are not positioned equidistantly. Furthermore, this will ensure that no houses would be predicted with negative sale prices and that errors in predicting expensive houses will not have an undue influence on the model. 
+The data seems to have a slight right skewed distribution with a mean pricing of 181,876.  
 </font>
 
 <font color="#800000">
-For a better sense of the numeric variables that constitute area and key characteristics, we look at the histogram for a few. Given the importance of property size metrics, we quickly zoomed in on “GrLivArea”, “LotArea” and “GarageArea” as potential explanatory variables.
+For a better sense of the numeric variables that constitute area and key characteristics, we look at the histogram for a few. Given the importance of property size metrics, we quickly zoomed in on “Gr.Liv.Area”, “Lot.Area” and “Garage.Area” as potential explanatory variables.
 </font>
 
 ```{r}
 par(mfrow = c(3, 3))
-hist(housing.train$Lot.Frontage, breaks = 20, main = "Feet of Street Connected to Property", border="red", col="steelblue")
-hist(housing.train$Lot.Area, breaks = 20, main = "Lot Size in Square Feet", border="red", col="steelblue")
-hist(housing.train$Gr.Liv.Area, breaks = 20, main = "Above Ground Living Area", border="red", col="steelblue")
-hist(housing.train$Pool.Area, breaks = 20, main = "Pool Area", border="red", col="steelblue")
-hist(housing.train$Total.Bsmt.SF, breaks = 20, main = "Total Basement Square Feet", border="red", col="steelblue")
-hist(housing.train$Year.Built, breaks = 20, main = "Year Built", border="red", col="steelblue")
-hist(housing.train$Full.Bath, breaks = 20, main = "Full Bath", border="red", col="steelblue")
-hist(housing.train$Bedroom.AbvGr, breaks = 20, main = "Bedroom Above Ground", border="red", col="steelblue")
-hist(housing.train$Garage.Area, breaks = 20, main = "red", border="red", col="steelblue")
+hist(housing.train$Lot.Frontage, breaks = 20, main = "Feet of Street Connected to Property", xlab = "Lot Frontage", border="red", col="steelblue")
+hist(housing.train$Lot.Area, breaks = 20, main = "Lot Area in Square Feet", xlab = "Lot Area", border="red", col="steelblue")
+hist(housing.train$Gr.Liv.Area, breaks = 20, main = "Above Ground Living Area",  xlab = "Above Ground Living Area", border="red", col="steelblue")
+hist(housing.train$Pool.Area, breaks = 20, main = "Pool Area",  xlab = "Pool Area", border="red", col="steelblue")
+hist(housing.train$Total.Bsmt.SF, breaks = 20, xlab = "Basement Square Feet", main = "Total Basement Square Feet", border="red", col="steelblue")
+hist(housing.train$Year.Built, breaks = 20, main = "Year Built", xlab = "Year Built", border="red", col="steelblue")
+hist(housing.train$Full.Bath, breaks = 20, main = "Full Bath", xlab = "Full Bath", border="red", col="steelblue")
+hist(housing.train$Bedroom.AbvGr, breaks = 20, main = "Bedroom Above Ground", xlab = "Bedroom Above Ground", border="red", col="steelblue")
+hist(housing.train$Garage.Area, breaks = 20, main = "Garage Area", xlab = "Garage Area",  border="red", col="steelblue")
 ```
 
 <font color="#800000">
-Intuitively, neighbourhoods are a relevant predictor for Sale Price, so we proceed to make summary tables and boxplots to visualize this relationship. 
+Intuitively, neighborhoods are a relevant predictor for sale price: more expensive neighborhoods would have higher prices, so we proceed to make summary tables and boxplots to visualize this relationship. 
 </font>
 
 ```{r, warning = FALSE}
 neighborhood.eval <- housing.train %>%
   group_by(Neighborhood) %>%
-  summarize(average.price = mean(SalePrice), 
-            median.price = median(SalePrice), .groups = "keep",
-            count = n())
+  dplyr::summarize(Averageprice = mean(SalePrice), 
+            Medianprice = median(SalePrice), .groups = "keep")
 
 kable(neighborhood.eval)
 ```
 
 ```{r}
-#Neighborhood
-ggplot(data = housing.train, aes(x =SalePrice , y = Neighborhood)) +
-  geom_boxplot() + ggtitle("Neighborhood vs Sales Price")
+housing.train %>%
+        ggplot(aes(x = SalePrice / 1000, y = Neighborhood, fill = Neighborhood)) +
+        geom_density_ridges(scale = 4) +
+        theme_ridges() +
+        theme(legend.position = "none") +
+        xlab("Home Price in '000's") +
+        theme(axis.title.y = element_blank())
 ```
 
-<font color="#800000">
-StoneBr, NridgeHt and NoRidge seem to be the more pricier neighborhoods. Our intuition was spot on: the sales price varies with different neighborhoods, so we should definitely include this in our model as a predictor.
 
-Other characteristics that stands out is overall quality of the house and kitchen quality . We expect there to be a strong linear relationship between quality and prices. The poorer the quality, the lower the price. These can be strong predictors in our model.
+<font color="#800000">
+'StoneBr', 'NridgeHt' and 'NoRidge' seem to be the more pricier neighborhoods, and the density plots show that the prices across these neighborhoods tend to vary more. We can also see that the least expensive homes are likely in ‘MeadowV. Our intuition was spot on: the sales price varies with different neighborhoods, so we should definitely include this in our model as a predictor.
+
+https://rpubs.com/sknapp/667278 
+
+Other characteristics that stands out are the quality characteristics. We expect there to be a strong linear relationship between quality and prices. The poorer the quality, the lower the price which we expect to be strong predictors in our model.
 </font>
 
 ```{r}
-qual.plot <- ggplot(housing.train, aes(Overall.Qual,SalePrice)) + geom_jitter(alpha = 0.5, color = "blue")
-qual.plot
+qual.plot <- ggplot(housing.train, aes(Overall.Qual,SalePrice)) + geom_jitter(alpha = 0.5, color = "blue")  + labs( x = "Overall Quality of House", y = "Sales Price")
+
+qual.plot2 <- ggplot(housing.train, aes(Kitchen.Qual,SalePrice)) + geom_jitter(alpha = 0.5, color = "blue") + labs( x = "Kitchen Quality", y = "Sales Price")
+
+
+qual.plot3 <- ggplot(housing.train, aes(Bsmt.Qual,SalePrice)) + geom_jitter(alpha = 0.5, color = "blue") + labs( x = "Basement Quality", y = "Sales Price")
+
+qual.plot4 <- ggplot(housing.train, aes(Exter.Qual,SalePrice)) + geom_jitter(alpha = 0.5, color = "blue") + labs( x = "Exterior Quality", y = "Sales Price")
+
+qual.plot5 <- ggplot(housing.train, aes(Garage.Qual,SalePrice)) + geom_jitter(alpha = 0.5, color = "blue") + labs( x = "Garage Quality", y = "Sales Price")
+
+library(cowplot)
+plot_grid(qual.plot, qual.plot2, qual.plot3, qual.plot4, qual.plot5, labels = "AUTO")
 ```
 
-```{r}
-qual.plot2 <- ggplot(housing.train, aes(Kitchen.Qual,SalePrice)) + geom_jitter(alpha = 0.5, color = "blue")
-qual.plot2
-```
+<font color="#800000">
+The type of house one lives in is a strong determinant of price. There are many outliers for 1- Story, 2-Story 1946 Newer Houses which is understandable given their might be other omitted variables we are not considering. 
+</font>
+
 
 ```{r}
-#MSSubclass
 ggplot(data = housing.train, aes(x = SalePrice, y = MS.SubClass)) +
-  geom_boxplot()
+  geom_boxplot() + labs(x = "Sale Price", y = "Type of Dwelling")
 ```
+<font color="#800000">
+The dataset covers 2006-2010 which falls within the years of the Great Recession. The Great Recession was a period of marked general decline observed in national economies globally that began in December 2007 and ended in June 2009.  Home prices fell approximately 30 percent, on average, from their mid-2006 peak to mid-2009. Source URL: https://www.federalreservehistory.org/essays/great-recession-of-200709.
+
+Given this fact, it is actually surprising that the dataset does not reflect a decrease in prices; but a stagnant rate across the five years in the graph below.
+</font>
 
 ```{r}
 housing.train %>% ggplot(aes(x = Yr.Sold, y= SalePrice/1000)) + geom_jitter() + stat_smooth(method = "lm") + ggtitle("Housing Prices Between 2006-2010") + xlab("Year Sold") + ylab("Price in $1000")
 ```
-
-```{r}
-housing.train %>%
-  group_by(Yr.Sold) %>%
-  summarize(meanprice = mean(SalePrice))
-
-```
-
-
-
-<font color="#800000">
-The dataset covers 2006-2010 which falls within the years of the Great Recession. The Great Recession was a period of marked general decline observed in national economies globally that began in December 2007 and ended in June 2009.  Home prices fell approximately 30 percent, on average, from their mid-2006 peak to mid-2009. Source URL: https://www.federalreservehistory.org/essays/great-recession-of-200709.
-
-Given this fact, it is actually surprising that the dataset does not reflect a decrease in prices; but a stagnant rate across the five years.
-</font>
-
 
 <font color="#800000">
 We also think it's meaningful to explore the relationship between price and year built. Generally, newer houses tend to be more expensive but there could elite neighborhoods with older houses that have a higher price. Let's see if this could be valuable for our model.
@@ -307,68 +290,28 @@ year.plot <- ggplot(housing.train, aes(Year.Built,SalePrice)) + geom_jitter(alph
 year.plot
 ```
 
+```{r}
+housing.train %>%
+        ggplot(aes(Year.Built)) +
+        geom_histogram(bins = 30, fill = "yellow", color = "black") +
+        geom_vline(aes(xintercept = mean(Year.Built), 
+                   color = "mean"), linetype = "dashed", size = 1) +
+        geom_vline(aes(xintercept = median(Year.Built), 
+                   color = "median"), linetype = "dashed", size = 1) +
+        scale_color_manual(name = "Statistics", values = c(mean = "red", median = "blue")) +
+        ggtitle("Histogram of Year Homes were Built in Ames") +
+        xlab("Year Built") + ylab("Number of Homes")
+```
+* reference source: https://rpubs.com/sknapp/667278
+
 <font color="#800000">
-Just as we expected, we see that newer houses tend to be more expensive in the dataset. However, there are a few outliers which exhibit the opposite: very old houses appear to increase in price. Perhaps these could be considered as "old century homes" built in years prior to 1920 which would no longer correspond to a price decrease with age. We would have to re-evalute this in our prediction model. 
+Just as we expected, we see that newer houses tend to be more expensive in the data-set. However, there are a few outliers which exhibit the opposite: very old houses appear to increase in price. Perhaps these could be considered as "old century homes" built in years prior to 1920 which would no longer correspond to a price decrease with age. Furthermore, our data-set seems to have a higher frequency of homes in the early 2000s which is a good indicator for our potential prediction model.
 </font>
 
 
-```{r}
-## Dig a bit deeper into any areas that show trends
-#Sale Condition
-
-ggplot(data = housing.train, aes(x = Sale.Condition, y = SalePrice)) +
-  geom_boxplot()
-
-#OverallCond
-
-ggplot(data = housing.train, aes(x = Overall.Cond, y = SalePrice)) +
-  geom_boxplot()
-
-#OverallQual
-
-ggplot(data = housing.train, aes(x = Overall.Qual, y = SalePrice)) +
-  geom_boxplot()
-
-#Functional
-ggplot(data = housing.train, aes(x = Functional, y = SalePrice)) +
-  geom_boxplot()
-
-#Kitchen Quality
-
-ggplot(data = housing.train, aes(x = Kitchen.Qual, y = SalePrice)) +
-  geom_boxplot()
-
-#BsmtCond
-
-ggplot(data = housing.train, aes(x = Bsmt.Cond, y = SalePrice)) +
-  geom_boxplot()
-
-#Extercond
-
-ggplot(data = housing.train, aes(x = Exter.Cond, y = SalePrice)) +
-  geom_boxplot()
-
-#HouseStyle
-ggplot(data = housing.train, aes(x = House.Style, y = SalePrice)) +
-  geom_boxplot()
-
-#BldgType
-
-ggplot(data = housing.train, aes(x = Bldg.Type, y = SalePrice)) +
-  geom_boxplot()
-
-
-#Sale Type
-
-ggplot(data = housing.train, aes(x = Sale.Type, y = SalePrice)) +
-  geom_boxplot()
-
-
-```
-
 
 <font color="#800000">
-For the purpose of making out model leaner, we will explore variables that might exhibit high collinearity. Intuitively, it looks like there are some extra variables which may not be necessary. For example, our expectation is that Lot.Frontage and Lot.Area will be highly correlated. Similarly, Bedroom.AbvGr and TotRms.AbvGrd might follow a similar trend. We look further into the correlations between the numeric variables:
+For the purpose of making our final prediction model leaner, we will explore variables that might exhibit high collinearity. Intuitively, it looks like there are some extra variables which may not be necessary. For example, our expectation is that Lot.Frontage and Lot.Area will be highly correlated. Similarly, Bedroom.AbvGr and TotRms.AbvGrd might follow a similar trend. We look further into the correlations between the numeric variables.
 </font>
 
 
@@ -393,16 +336,24 @@ high.corr <- high.corr %>%
 name1 <- as.character(high.corr$Variable.1)
 name2 <- as.character(high.corr$Variable.2)
 hi.cor.vars <- unique(append(name1, name2))
-hi.cor.vars
 ```
 
+
+```{r, fig.width = 15}
+#highly correlated variables
+sub.house.high <- housing.train[hi.cor.vars]
+corr.sub.house.high <- round(cor(sub.house.high),2)
+
+
+#Use ggcorrplot to graph correlation. 
+ggcorrplot(corr.sub.house.high, hc.order = TRUE, outline.color = 'white', lab = TRUE, title = "Highly Correlated Variables in Housing Dataset", legend.title = "Correlation")
+```
 ```{r}
-categories.housing
+high.corr
 ```
-
 
 <font color="#800000">
-Based on intuition, we split the variables into sub-categories to explore collinearity. 
+As expected, we do see correlation between variables such as:TotRms.AbvGrd and Bedroom.AbvGr, X1st.Flr.SF	and Total.Bsmt.SF, SalePrice and	Gr.Liv.Area.  Based on intuition, we split the variables into sub-categories to further explore collinearity. This will help us zoom into some characteristics into narrowing down to our first simple model.
 </font>
 
 ```{r}
@@ -425,13 +376,10 @@ hsg.quality <- c("Overall.Qual","Overall.Cond","Exter.Qual","Exter.Cond",
 sales.crit <- c("MS.SubClass", "MS.Zoning", "Year.Built", "Year.Remod.Add",
                 "Mo.Sold", "Yr.Sold", "Sale.Type")
 
-# Use the following characterstics to make correlation plots and pick out the most relevant 
 #Geo-Spatial Characteristics
 geo.char <- c("Lot.Area","Lot.Frontage","Mas.Vnr.Area","X1st.Flr.SF","X2nd.Flr.SF","Garage.Area","Wood.Deck.SF",
               "Open.Porch.SF","Pool.Area", "Low.Qual.Fin.SF","Gr.Liv.Area")
-  
-  
-ggpairs(data = housing.train[,geo.char[1:5]])
+
 
 #Basement/Bath Redundancies
 bb.crit <- c("BsmtFin.SF.1", "BsmtFin.SF.2", "Bsmt.Unf.SF", "Total.Bsmt.SF", 
@@ -456,16 +404,6 @@ corr.sub.house.ag <- round(cor(sub.house.ag.crit),2)
 sub.house.dp.crit <- housing.train[dp.crit]
 corr.sub.house.dp <- round(cor(sub.house.dp.crit),2)
 
-```
-
-```{r, fig.width = 15}
-#highly correlated variables
-sub.house.high <- housing.train[hi.cor.vars]
-corr.sub.house.high <- round(cor(sub.house.high),2)
-
-
-#Use ggcorrplot to graph correlation. 
-ggcorrplot(corr.sub.house.high, hc.order = TRUE, outline.color = 'white', lab = TRUE, title = "Highly Correlated Variables in Housing Dataset", legend.title = "Correlation")
 ```
 
 
@@ -568,74 +506,25 @@ paste("Mean RelErr: ", mean(calcRelErr(preds=lm.preds, housing.test$SalePrice)))
 
 
 ```
+`
+<font color="#800000">
+Running our multiple regression model shows that a one unit change in overall quality is associated with a 14,958 dollars increase in Sales Price and is statistically significant.  Similarly, a one unit change in overall quality is associated with a $14,958 increase in Sales Price and it is also statistically significant. 
 
+Before creating different models we will zoom into one metric that we will use for evaluation purposes from Mean Absolute Error, Root-Mean Squared Error and Mean Relative Error:
 
-```{r}
-nums <- unlist(lapply(housing.train, is.numeric))
-num.housing.train <- housing.train[,nums]
-```
+The MAE measures the average magnitude of errors in a set of prediction. It’s the average over the test sample of the absolute differences between prediction and actual observation where all individual differences have equal weight. The RMSE gives a relatively high weight to large errors. This means the RMSE should be more useful when large errors are particularly undesirable. In the case of our housing model, we want our prediction to be accurate to an average home; which is why MAE makes more sense. 
 
-```{r}
-library(leaps)
-regfit.fwd <- regsubsets(SalePrice~., data = num.housing.train, nbest = 1, nvmax = NULL, method = "forward", really.big=TRUE)
+We will stick to MAE when comparing with other models of evaluation. 
 
-```
+https://medium.com/human-in-a-machine-world/mae-and-rmse-which-metric-is-better-e60ac3bde13d
+</font>
 
-```{r}
-regfit.summary <- summary(regfit.fwd)
-
-num_variables<-seq(1,length(regfit.summary$rss))
-
-plot_RSS<-ggplot(data = data.frame(regfit.summary$rss),
-                 aes(x=num_variables,y=regfit.summary$rss))+
-  geom_line()+
-  geom_point(x=which.min(regfit.summary$rss),
-             y=min(regfit.summary$rss),aes(color="red"),
-             show.legend = FALSE)+
-  xlab("# Variables")+
-  ylab("RSS")+
-  theme_bw()
-
-plot_R_sq<-ggplot(data = data.frame(regfit.summary$rsq),
-                 aes(x=num_variables,y=regfit.summary$rsq))+
-  geom_line()+
-  geom_point(x=which.max(regfit.summary$rsq),
-             y=max(regfit.summary$rsq),aes(color="red"),
-             show.legend = FALSE)+
-  xlab("# Variables")+
-  ylab("R-sq")+
-  theme_bw()
-
-plot_BIC<-ggplot(data = data.frame(regfit.summary$bic),
-                 aes(x=num_variables,y=regfit.summary$bic))+
-  geom_line()+
-  geom_point(x=which.min(regfit.summary$bic),
-             y=min(regfit.summary$bic),aes(color="red"),
-             show.legend = FALSE)+
-  xlab("# Variables")+
-  ylab("BIC")+
-  theme_bw()
-
-plot_AIC<-ggplot(data = data.frame(regfit.summary$cp),
-                 aes(x=num_variables,y=regfit.summary$cp))+
-  geom_line()+
-  geom_point(x=which.min(regfit.summary$cp),
-              y=min(regfit.summary$cp),aes(color="red"),
-             show.legend = FALSE)+
-  xlab("# Variables")+
-  ylab("AIC")+
-  theme_bw()
-
-
-grid.arrange(plot_RSS, plot_R_sq,plot_AIC,plot_BIC, ncol=2,nrow=2)
-
-```
-```{r}
-#variables for lowest BIC
-coef(regfit.fwd, which.min(regfit.summary$bic))
-```
 
 ## Lasso Model
+
+<font color="#800000">
+We think we can do better than the MAE from our linear model. The second model we want to test out is the Lasso regression because our data-set is indicative of high levels of multi-collinearity and we want to automate certain parts of model selection i.e variable selection or parameter elimination.
+</font>
 
 ```{r}
 library(glmnet)
@@ -676,9 +565,16 @@ paste("MAE: ", mae(predicted=lasso.pred, actual=y[test], lasso.mod))
 paste("RMSE: ", rmse(predicted=lasso.pred, actual=y[test], lasso.mod))
 paste("Mean RelErr: ", mean(calcRelErr(preds=lasso.pred, y[test])))
 ```
+<font color="#800000">
+There is an approximately ~ 2,000 dollar reduction in MAE which is great for our prediction model but not that useful for our renovation function, we want a model that includes important indicative variables which are usually an "ask" during restructing of houses such as: kitchen quality and bathroom characteristics and this seems to eliminate them.  
+</font>
 
 
 ## Random Forests
+<font color="#800000">
+The random forest method can build prediction models using random forest regression trees, which are usually unpruned to give stronger predictions. We want to explore this as a possibility for a better 
+</font>
+
 ```{r}
 set.seed(1)
 rf <- randomForest(SalePrice ~ .,data=housing.train, mtry=25, importance=TRUE)
@@ -705,13 +601,12 @@ paste("Mean RelErr: ", mean(calcRelErr(preds=rf.preds, actual=housing.test$SaleP
 
 
 ```
+
 ## Random Forest Variables
 ```{r}
-#I think this is redundant information
 rf.imp.plot <- varImpPlot(rf)
 imp.vars <- as.character(rownames(rf.imp.plot)[order(rf.imp.plot, decreasing = TRUE)])
 imp.vars <- imp.vars[c(80:158)]
-imp.vars
 ```
 
 
@@ -720,9 +615,9 @@ imp.vars
 #Out-of-bag MSE curve
 plot(rf)
 ```
-
+<font color="#800000">
 This plot shows that the Out-of-Bag (OOB) test error plateaus at around 400 trees. We will run a test to see which mtry value gives the lowest OOB test error.
-
+</font>
 
 ```{r}
 mtry <- tuneRF(housing.train[-80], housing.train$SalePrice, ntreeTry = 500,
@@ -733,24 +628,11 @@ print(mtry)
 print(best.m)
 ```
 
-According to the tuning model, the random forest model that results in the lowest Out-of-Bag error estimates uses an mtry value of 39. The next three lowest OOB Errors come with mtry values of 18, 26, and 58. Note, we originally ran our model with an mtry value of 25. 
+<font color="#800000">
+According to the tuning model, the random forest model that results in the lowest Out-of-Bag error estimates uses an mtry value of 39. The next three lowest OOB Errors come with mtry values of 18, 26, and 58. Note, we originally ran our model with an mtry value of 25 and that still gives us the lowest MAE. 
+</font>
 
-```{r}
-#set.seed(1)
-#rf <- randomForest(SalePrice ~ .,data=housing.train, mtry=25, importance=TRUE)
-#rf
 
-#varImpPlot(rf,n.var = 20)
-
-#rf.preds <- predict(rf, newdata = housing.test)
-#lm.MAE <- mae(actual=housing.test$SalePrice, predicted=rf.preds, rf)
-#lm.RMSE <- rmse(actual=housing.test$SalePrice, predicted=rf.preds, rf)
-
-#paste("MAE: ",lm.MAE)
-#paste("RMSE: ",lm.RMSE)
-#paste("Mean RelErr: ", mean(calcRelErr(preds=rf.preds, actual=housing.test$SalePrice)))
-
-```
 
 ## GAM Model
 
@@ -1097,6 +979,7 @@ AC: "Yes" if adding central air conditioning
 #Update nomenclature to either input "number" or "code"
 
 info.ingest <- function() {
+
 writeLines("Renovation Calculator!
 We want to help you get the most bang for your buck.  Tell us a a bit about your property!\n")
 
