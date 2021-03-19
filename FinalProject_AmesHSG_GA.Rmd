@@ -570,69 +570,6 @@ There is an approximately ~ 2,000 dollar reduction in MAE which is great for our
 </font>
 
 
-## Random Forests
-<font color="#800000">
-The random forest method can build prediction models using random forest regression trees, which are usually unpruned to give stronger predictions. We want to explore this as a possibility for a better 
-</font>
-
-```{r}
-set.seed(1)
-rf <- randomForest(SalePrice ~ .,data=housing.train, mtry=25, importance=TRUE)
-rf
-
-varImpPlot(rf,n.var = 20)
-
-rf.preds <- predict(rf, newdata = housing.test)
-
-rf.resid = housing.test$SalePrice - rf.preds
-
-#Residual Plot for Random Forest Model 1
-ggplot(data=data.frame(rf.preds, rf.resid), aes(rf.preds,rf.resid)) +
-  geom_point(size=1,colour="lightblue") +
-  geom_hline(yintercept = mean(rf.resid), color="red")+
-  theme_bw() 
-
-lm.MAE <- mae(actual=housing.test$SalePrice, predicted=rf.preds, rf)
-lm.RMSE <- rmse(actual=housing.test$SalePrice, predicted=rf.preds, rf)
-
-paste("MAE: ",lm.MAE)
-paste("RMSE: ",lm.RMSE)
-paste("Mean RelErr: ", mean(calcRelErr(preds=rf.preds, actual=housing.test$SalePrice)))
-
-
-```
-
-## Random Forest Variables
-```{r}
-rf.imp.plot <- varImpPlot(rf)
-imp.vars <- as.character(rownames(rf.imp.plot)[order(rf.imp.plot, decreasing = TRUE)])
-imp.vars <- imp.vars[c(80:158)]
-```
-
-
-
-```{r}
-#Out-of-bag MSE curve
-plot(rf)
-```
-<font color="#800000">
-This plot shows that the Out-of-Bag (OOB) test error plateaus at around 400 trees. We will run a test to see which mtry value gives the lowest OOB test error.
-</font>
-
-```{r}
-mtry <- tuneRF(housing.train[-80], housing.train$SalePrice, ntreeTry = 500,
-               stepFactor = 1.5, improve = 0.01, trace = TRUE, plot = TRUE)
-best.m <- mtry[mtry[,2] == min(mtry[,2]), 1]
-
-print(mtry)
-print(best.m)
-```
-
-<font color="#800000">
-According to the tuning model, the random forest model that results in the lowest Out-of-Bag error estimates uses an mtry value of 39. The next three lowest OOB Errors come with mtry values of 18, 26, and 58. Note, we originally ran our model with an mtry value of 25 and that still gives us the lowest MAE. 
-</font>
-
-
 
 ## GAM Model
 
@@ -903,12 +840,8 @@ Our CV error model suggests we use a polynomial with df = 2. As with overall qua
 ```{r}
 
 gam.fit <- gam(SalePrice ~ bs(Gr.Liv.Area, 4) + ns(Overall.Qual, 3) + s(X1st.Flr.SF, 7) + MS.SubClass +
-                 bs(X2nd.Flr.SF, 6) + poly(as.numeric(BsmtFin.Type.1), 5) + MS.Zoning + poly(Full.Bath, 3) + 
+                 bs(X2nd.Flr.SF, 6) + MS.Zoning + poly(Full.Bath, 3) + 
                  poly(Kitchen.Qual, 2) + Neighborhood + Central.Air, data = housing.train)
-
-gam.fit1 <- gam(SalePrice ~ bs(Gr.Liv.Area, 4) + ns(Overall.Qual,3) + s(X1st.Flr.SF, 10) + MS.SubClass +
-                 poly(X2nd.Flr.SF, 3) + ns(Bsmt.Qual, 3) + MS.Zoning + ns(Full.Bath, 4) + 
-                 poly(Kitchen.Qual,2) + Neighborhood + Utilities + Lot.Area, data = housing.train)
 
 summary(gam.fit)
 
@@ -958,17 +891,90 @@ paste("RMSE: ", lm.RMSE.2)
 paste("Mean RelErr: ", mean(calcRelErr(preds=lm.preds.2, housing.test$SalePrice)))
 ```
 
+## Random Forests
+<font color="#800000">
+The random forest method can build prediction models using random forest regression trees, which are usually unpruned to give stronger predictions. We want to explore this as a possibility for a better 
+</font>
+
+```{r}
+set.seed(1)
+rf <- randomForest(SalePrice ~ .,data=housing.train, mtry=25, importance=TRUE)
+rf
+
+varImpPlot(rf,n.var = 20)
+
+rf.preds <- predict(rf, newdata = housing.test)
+
+rf.resid = housing.test$SalePrice - rf.preds
+
+#Residual Plot for Random Forest Model 1
+ggplot(data=data.frame(rf.preds, rf.resid), aes(rf.preds,rf.resid)) +
+  geom_point(size=1,colour="lightblue") +
+  geom_hline(yintercept = mean(rf.resid), color="red")+
+  theme_bw() 
+
+lm.MAE <- mae(actual=housing.test$SalePrice, predicted=rf.preds, rf)
+lm.RMSE <- rmse(actual=housing.test$SalePrice, predicted=rf.preds, rf)
+
+paste("MAE: ",lm.MAE)
+paste("RMSE: ",lm.RMSE)
+paste("Mean RelErr: ", mean(calcRelErr(preds=rf.preds, actual=housing.test$SalePrice)))
+
+
+```
+
+## Random Forest Variables
+```{r}
+rf.imp.plot <- varImpPlot(rf)
+imp.vars <- as.character(rownames(rf.imp.plot)[order(rf.imp.plot, decreasing = TRUE)])
+imp.vars <- imp.vars[c(80:158)]
+```
+
+
+
+```{r}
+#Out-of-bag MSE curve
+plot(rf)
+```
+<font color="#800000">
+This plot shows that the Out-of-Bag (OOB) test error plateaus at around 400 trees. We will run a test to see which mtry value gives the lowest OOB test error.
+</font>
+
+```{r}
+mtry <- tuneRF(housing.train[-80], housing.train$SalePrice, ntreeTry = 500,
+               stepFactor = 1.5, improve = 0.01, trace = TRUE, plot = TRUE)
+best.m <- mtry[mtry[,2] == min(mtry[,2]), 1]
+
+print(mtry)
+print(best.m)
+```
+
+<font color="#800000">
+According to the tuning model, the random forest model that results in the lowest Out-of-Bag error estimates uses an mtry value of 39. The next three lowest OOB Errors come with mtry values of 18, 26, and 58. Note, we originally ran our model with an mtry value of 25 and that still gives us the lowest MAE. 
+</font>
+
 # Section 3: Key Findings/Take Aways
 
+```{r}
+residual.summary <- housing.test %>%
+  mutate(residuals = abs(housing.test$SalePrice - rf.preds)) %>%
+  group_by(Neighborhood) %>%
+  dplyr:: summarise(mean.residual = mean(residuals)/1000)
+
+ggplot(data = residual.summary, aes(x = reorder(Neighborhood, -mean.residual), 
+                                    y = mean.residual)) + 
+  geom_bar(stat="identity", fill = "Red", alpha = 0.4) +
+  xlab("Neighborhood") +
+  ylab("Avg. Residual Error ($1000's)") +
+  ggtitle("Random Forest Avg. Residual Error Per Neighborhood") +
+  theme(axis.text.x=element_text(angle = -90, vjust = 0))
+```
+
+<font color="#800000">
+We see from the above data that StoneBr, NridgeHt and NoRidge are within the top 5 neighborhoods with the largest average residual error.  This would make sense given the high variability of home prices in these neighborhoods, as seen in the initial data review. We see similar behaviour for the neighborhoods Crawfor, and ClearCr.
+</font>
+
 # Home Improvement - Sale Price Calculator
-
-id: the row index for the home 
-basement: the level upgrade requested ("GLQ", "ALQ", "BLQ", "Rec", "LwQ")
-full.bath: the # of full bathrooms to add
-half.bath: the # of half bathrooms to add
-kitchen: the level upgrade requested (Fa" = 2, "TA" = 3, "Gd" = 4, "Ex" = 5)
-AC: "Yes" if adding central air conditioning
-
 
 ```{r}
 ##Ingest information from User to set baseline understanding of home & understanding of type of renovations they desire to make
@@ -1391,7 +1397,6 @@ if(toupper(basement.fin) == "NONE") {
   } 
 }
 
-
 writeLines("What is the ceiling height of your basement?")
 writeLines("5. (100+ inches)	
 4. (90-99 inches)
@@ -1407,10 +1412,6 @@ if(toupper(bsmt.qual) == "NONE") {
 } else {
   bsmt.qual <- as.integer(bsmt.qual)
 }
-# bsmt.qual.upgrd <- readline("Are you looking to improve the height of your basement?\nIf yes, enter the target grade from the list.  If no enter `None`: ")
-# if(!toupper(bsmt.qual.upgrd) == "NONE") {
-#   bsmt.qual.upgrd <- as.integer(bsmt.qual.upgrd)
-# }
 
 writeLines("\n")
 
@@ -1472,7 +1473,6 @@ baseline["Exter.Qual"] = exter.qual
 baseline["X1st.Flr.SF"] = x1st.sf
 baseline["X2nd.Flr.SF"] = x2nd.sf
 baseline["Bsmt.Qual"] = as.double(bsmt.qual)
-#baseline["BsmtFin.Type.1"] = basement.fin
 baseline["Fireplaces"] = as.double(fire)
 baseline["Fireplace.Qu"] = fire.qual
 baseline["Full.Bath"] = as.double(full.bath)
@@ -1498,7 +1498,7 @@ na.fail(baseline)
 print("baseline passed")
 na.fail(renovated)
 
-calcRenoValGAM(baseline,renovated)
+calcRenoValRF(baseline,renovated)
 list(baseline = baseline, renovated = renovated)
 }
 
@@ -1525,15 +1525,8 @@ calcRenoValGAM <- function(origHouse, remodeledHouse){
   percent.increase <- value.delta/origHomeVal
   message <- paste("The changes you have proposed to make in your home upgrade have increased it's value by $", value.delta, "which is a", percent.increase,"% increase in value")
   print (message)
-
-
 }
-```
 
-
-```{r}
-#Lets
-info.ingest()
 
 ```
 
