@@ -565,6 +565,7 @@ paste("MAE: ", mae(predicted=lasso.pred, actual=y[test], lasso.mod))
 paste("RMSE: ", rmse(predicted=lasso.pred, actual=y[test], lasso.mod))
 paste("Mean RelErr: ", mean(calcRelErr(preds=lasso.pred, y[test])))
 ```
+
 <font color="#800000">
 There is an approximately ~ 2,000 dollar reduction in MAE which is great for our prediction model but not that useful for our renovation function, we want a model that includes important indicative variables which are usually an "ask" during restructing of houses such as: kitchen quality and bathroom characteristics and this seems to eliminate them.  
 </font>
@@ -572,6 +573,7 @@ There is an approximately ~ 2,000 dollar reduction in MAE which is great for our
 
 
 ## GAM Model
+
 
 ```{r}
 library(gam)
@@ -893,7 +895,7 @@ paste("Mean RelErr: ", mean(calcRelErr(preds=lm.preds.2, housing.test$SalePrice)
 
 ## Random Forests
 <font color="#800000">
-The random forest method can build prediction models using random forest regression trees, which are usually unpruned to give stronger predictions. We want to explore this as a possibility for a better 
+The random forest method can build prediction models using random forest regression trees, which are usually unpruned to give stronger predictions. We want to explore this as a possibility for a better model than both our linear, Lasso and GAM models.  
 </font>
 
 ```{r}
@@ -923,19 +925,32 @@ paste("Mean RelErr: ", mean(calcRelErr(preds=rf.preds, actual=housing.test$SaleP
 
 ```
 
+<font color="#800000">
+After an exhaustive exploratory analysis and running several models, we finally have the one. Our random forest model gives us an MAE:  ~15,700 which is the lowest of all the models. We could use this as our best prediction model but before we move forward we are going to explore this a little more and check the most salient features predicting sales price.  
+</font>
+
+
 ## Random Forest Variables
-```{r}
+```{r, fig.length = 10, fig.width = 15}
 rf.imp.plot <- varImpPlot(rf)
 imp.vars <- as.character(rownames(rf.imp.plot)[order(rf.imp.plot, decreasing = TRUE)])
 imp.vars <- imp.vars[c(80:158)]
 ```
 
+<font color="#800000">
+MeanDecreaseAccuracy: gives a rough estimate of the loss in prediction performance when that particular variable is omitted from the training set.
+
+MeanDecreaseGini: GINI is a measure of node impurity. Think of it like this, if you use this feature to split the data, how pure will the nodes be? Highest purity means that each node contains only elements of a single class. Assessing the decrease in GINI when that feature is omitted leads to an understanding of how important that feature is to split the data correctly. 
+
+Given the context, the plot above shows, in decreasing importance; Overall.Qual, Gr.Liv.Area, Exter.Qual, Garage.Cars, Bsmt.Qual, Total.Bsmnt.SF as the key predictors for Sale Price. 
+</font>
 
 
 ```{r}
 #Out-of-bag MSE curve
 plot(rf)
 ```
+
 <font color="#800000">
 This plot shows that the Out-of-Bag (OOB) test error plateaus at around 400 trees. We will run a test to see which mtry value gives the lowest OOB test error.
 </font>
@@ -1513,8 +1528,7 @@ calcRenoValRF <- function(origHouse, remodeledHouse){
   
   value.delta <- remHomeVal- origHomeVal
   percent.increase <- value.delta/origHomeVal
-  percent.increase <- percent.increase * 100
-  message <- paste("The changes you have proposed to make in your home upgrade have increased it's value by $", round(value.delta, digits = 2), "which is a", round(percent.increase, digits = 2),"% increase in value")
+  message <- paste("The changes you have proposed to make in your home upgrade have increased it's value by $", value.delta, "which is a", percent.increase,"% increase in value")
   print (message)
 }
 
@@ -1524,8 +1538,7 @@ calcRenoValGAM <- function(origHouse, remodeledHouse){
   
   value.delta <- remHomeVal- origHomeVal
   percent.increase <- value.delta/origHomeVal
-  percent.increase <- percent.increase * 100
-  message <- paste("The changes you have proposed to make in your home upgrade have increased it's value by $", round(value.delta, digits = 2), "which is a", round(percent.increase, digits = 2),"% increase in value")
+  message <- paste("The changes you have proposed to make in your home upgrade have increased it's value by $", value.delta, "which is a", percent.increase,"% increase in value")
   print (message)
 }
 
@@ -1533,18 +1546,9 @@ calcRenoValGAM <- function(origHouse, remodeledHouse){
 ```
 
 
-# Resources
 
-- https://www.federalreservehistory.org/essays/great-recession-of-200709
-- https://rpubs.com/sknapp/667278
-- https://medium.com/human-in-a-machine-world/mae-and-rmse-which-metric-is-better-e60ac3bde13d
-- https://stackoverflow.com/questions/51449243/how-to-replace-empty-string-with-na-in-r-dataframe
-- https://stackoverflow.com/questions/8161836/how-do-i-replace-na-values-with-zeros-in-an-r-dataframe
-- https://stackoverflow.com/questions/24829674/r-random-forest-error-type-of-predictors-in-new-data-do-not-match
-- https://www.listendata.com/2014/11/random-forest-with-r.html#Methods-to-find-Best-Split
-- https://petolau.github.io/Analyzing-double-seasonal-time-series-with-GAM-in-R/
-- https://www.usinflationcalculator.com/
-- https://www.homeadvisor.com/cost/additions-and-remodels/build-an-addition/
-- https://kitchenremodeling.roofingcontractorcompany.com/iowa/ames-ia/
-- https://www.manta.com/cost-bathroom-remodeling-ames-ia
-- https://patch.com/iowa/des-moines/iowa-homeowners-remodeling-costs-5-improvement-projects
+
+
+
+
+
