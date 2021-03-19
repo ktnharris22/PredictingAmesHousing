@@ -112,8 +112,6 @@ housing.processed <- housing.clean %>%
   mutate(Fireplace.Qu = recode(Fireplace.Qu,"Po" = 1, "Fa" = 2, "TA" = 3, "Gd" = 4, "Ex" = 5, .default = 0))%>%
   mutate(Garage.Qual = recode(Garage.Qual,"Po" = 1, "Fa" = 2, "TA" = 3, "Gd" = 4, "Ex" = 5, .default = 0))%>%
   mutate(Bsmt.Qual = recode(Bsmt.Qual,"Po" = 1, "Fa" = 2, "TA" = 3, "Gd" = 4, "Ex" = 5, .default = 0))%>%
-  mutate(BsmtFin.Type.1 = factor(BsmtFin.Type.1, levels = c("GLQ", "ALQ", "BLQ", "Rec", "LwQ", "Unf", "None"))) %>%
-  mutate(BsmtFin.Type.2 = factor(BsmtFin.Type.2, levels = c("GLQ", "ALQ", "BLQ", "Rec", "LwQ", "Unf", "None"))) %>%
   mutate(Heating.QC = factor(Heating.QC, levels = c("Ex", "Gd", "TA", "Fa", "Po"))) %>%
   mutate(Kitchen.Qual = recode(Kitchen.Qual,"Po" = 1, "Fa" = 2, "TA" = 3, "Gd" = 4, "Ex" = 5, .default = 0))%>%
   mutate(Exter.Qual = recode(Exter.Qual,"Po" = 1, "Fa" = 2, "TA" = 3, "Gd" = 4, "Ex" = 5, .default = 0))%>%
@@ -1089,163 +1087,6 @@ half.bath: the # of half bathrooms to add
 kitchen: the level upgrade requested (Fa" = 2, "TA" = 3, "Gd" = 4, "Ex" = 5)
 AC: "Yes" if adding central air conditioning
 
-```{r}
-possible.homes <- housing.test
-possible.homes$predicted <- rf.preds
-
-possible.homes1k <- possible.homes %>%
-  filter(abs(predicted - SalePrice) <= 1000)
-
-possible.homes500 <- possible.homes %>%
-  filter(abs(predicted - SalePrice) <= 500)
-
-possible.homes100 <- possible.homes %>%
-  filter(abs(predicted - SalePrice) <= 100)
-
-possible.homes5k <- possible.homes %>%
-  filter(abs(predicted - SalePrice) <= 5000)
-
-
-possible.homes <- possible.homes %>%
-  filter(abs(predicted - SalePrice) <= 2000)
-
-homes <- housing.test
-homes$predicted <- gam.preds
-
-homes2k <- homes %>%
-  filter(abs(predicted - SalePrice) <= 2000)
-
-```
-
-```{r}
-y = readline(prompt="Input variable ")
-typeof(y)
-
-```
-
-```{r}
-price.calculator <- function(id, basement = 0, full.bath = "null", half.bath = "null", kitchen = 0, AC = 0) {
-  current.price <- possible.homes$SalePrice[id]
-  pred.price <- predict(rf, newdata = possible.homes[id,])
-  diff <- abs(current.price - pred.price)
-  
-  df.homes <- possible.homes
-  
-  if(!basement == 0) {
-    df.homes$BsmtFin.Type.1[id] <- basement
-  }
-  if(!full.bath == "null") {
-    df.homes$Full.Bath[id] <- full.bath
-  }
-  if(!half.bath == "null") {
-    df.homes$Half.Bath[id] <- half.bath
-  }
-  if(!kitchen == 0) {
-    df.homes$Kitchen.Qual[id] <- kitchen
-  }
-  if(!AC == 0) {
-    df.homes$Central.Air[id] <- AC
-  }
-  
-  updated.price <- predict(rf, newdata = df.homes[id,])
-  
-  output <- data.frame(Current_Price = current.price,
-                       Current_Predicted_Price = pred.price,
-                       Updated_Price = updated.price)
-  print(output)
-  
-}
-```
-
-
-```{r}
-#price.calculator(id = 10, full.bath = 3)
-```
-
-```{r}
-price.calculator2 <- function(id, basement = "no", full.bath = "no", half.bath = "no", kitchen = "no", AC = "no") {
-  current.price <- possible.homes$SalePrice[id]
-  pred.price <- predict(rf, newdata = possible.homes[id,])
-  diff <- abs(current.price - pred.price)
-  
-  df.basement <- possible.homes
-  df.fullbath <- possible.homes
-  df.halfbath <- possible.homes
-  df.kitchen <- possible.homes
-  df.AC <- possible.homes
-  
-  basement.lvl <- c("GLQ", "ALQ", "BLQ", "Rec", "LwQ", "Unf")
-  kitchen.lvl <- c(1, 2, 3, 4, 5)
-  
-  basement.plot <- c()
-  fullbath.plot <- c()
-  halfbath.plot <- c()
-  kitchen.plot <- c()
-  AC.plot <- c()
-  
-  if(basement == "yes") {
-    for(i in basement.lvl) {
-      df.basement$BsmtFin.Type.1[id] <- i
-      basement.plot[i] <- predict(rf, newdata = df.basement[id,])
-    }
-    df1 <- data.frame(rating = basement.lvl,
-                    Sale_Price = basement.plot)
-    print(qplot(x = rating, y = Sale_Price, data = df1) + geom_point() +
-      geom_point(aes(x = possible.homes$BsmtFin.Type.1[id], y = possible.homes$predicted[id]), col = I("red")))
-  }
-  
-  if(full.bath == "yes") {
-    for(i in 1:5) {
-      df.fullbath$Full.Bath[id] <- i
-      fullbath.plot[i] <- predict(rf, newdata = df.fullbath[id,])
-    }
-    df2 <- data.frame(number = c(1:5),
-                    Sale_Price = fullbath.plot)
-    print(qplot(x = number, y = Sale_Price, data = df2) + geom_point() +
-      geom_point(aes(x = possible.homes$Full.Bath[id], y = possible.homes$predicted[id]), col = I("red")))
-  }  
-  
-  if(half.bath == "yes") {
-    for(i in 1:3) {
-      df.halfbath$Half.Bath[id] <- i
-      halfbath.plot[i] <- predict(rf, newdata = df.halfbath[id,])
-    }
-    df3 <- data.frame(number = c(1:3),
-                    Sale_Price = halfbath.plot)
-    print(qplot(x = number, y = Sale_Price, data = df3) + geom_point() +
-      geom_point(aes(x = possible.homes$Half.Bath[id], y = possible.homes$predicted[id]), col = I("red")))
-  } 
-   
-  if(kitchen == "yes") {
-    for(i in kitchen.lvl) {
-      df.kitchen$Kitchen.Qual[id] <- i
-      kitchen.plot[i] <- predict(rf, newdata = df.kitchen[id,])
-    }
-    df4 <- data.frame(rating = kitchen.lvl,
-                    Sale_Price = kitchen.plot)
-    print(qplot(x = rating, y = Sale_Price, data = df4) + geom_point() +
-      geom_point(aes(x = possible.homes$Kitchen.Qual[id], y = possible.homes$predicted[id]), col = I("red")))
-  }
-  
-  if(AC == "yes") {
-    for(i in c("no", "yes")) {
-      df.AC$Central.Air[id] <- i
-      AC.plot[i] <- predict(rf, newdata = df.AC[id,])
-    }
-    df5 <- data.frame(Have_AC = c("no", "yes"),
-                    Sale_Price = AC.plot)
-    print(qplot(x = Have_AC, y = Sale_Price, data = df5) + geom_point() +
-      geom_point(aes(x = possible.homes$Central.Air[id], y = possible.homes$predicted[id]), col = I("red")))
-  }
-  
-  
-}
-```
-
-```{r}
-price.calculator2(id = 10, basement = "yes", full.bath = "yes", half.bath = "yes", kitchen = "yes", AC = "yes")
-```
-
 
 ```{r}
 ##Ingest information from User to set baseline understanding of home & understanding of type of renovations they desire to make
@@ -1256,10 +1097,6 @@ price.calculator2(id = 10, basement = "yes", full.bath = "yes", half.bath = "yes
 #Update nomenclature to either input "number" or "code"
 
 info.ingest <- function() {
-
-avgRow <- sapply(housing.test, findAvg)
-avgRow <- data.frame(avgRow)
-
 writeLines("Renovation Calculator!
 We want to help you get the most bang for your buck.  Tell us a a bit about your property!\n")
 
@@ -1424,7 +1261,7 @@ writeLines("\n")
 
 baseline <- getbaselineRow(ms.class, neighborhood, house.price)
 
-
+print(baseline$BsmtFin.SF.1)
 writeLines("What year was your home built?")
 year <- readline("Input: ")
 year <- as.integer(year)
@@ -1570,7 +1407,7 @@ writeLines("What would you say is the overall quality of your home?")
 writeLines("10.     Very Excellent \n 9.	Excellent \n 8.	Very Good \n 7.	Good \n 6.	Above Average \n 5.	Average \n 4.	Below Average \n 3.	Fair  \n 2.	Poor  \n 1.	Very Poor")
 writeLines("Enter the number from the list above.")
 overall.qual <- readline("Input: ")
-overall.qual <- as.integer(overall.qual)
+overall.qual <- overall.qual
 
 writeLines("\n")
 
@@ -1586,6 +1423,7 @@ if(overall.qual %in% c(1,2)) {
   exter.qual <- 5
 } 
 
+fire.qual <- 0
 writeLines("Enter the number of fireplaces in your home (enter '0' if none).")
 fire <- readline("Input: ")
 fire <- as.integer(fire)
@@ -1652,6 +1490,7 @@ basement.fin <- readline("Input: ")
 
 if(toupper(basement.fin) == "NONE") {
   basement <- "None"
+  basement.fin <- 0
 } else {
   basement.fin <- as.integer(basement.fin)
   if (basement.fin == 1) {
@@ -1743,49 +1582,26 @@ ac <- readline("Input: ")
 ac <- toupper(ac)
 
 
-baseline["Year.Built"] = year
+baseline["Year.Built"] = as.double(year)
 baseline["Gr.Liv.Area"] = liv.area
-baseline["Overall.Qual"] = overall.qual
+baseline["Overall.Qual"] = as.double(overall.qual)
 baseline["Exter.Qual"] = exter.qual
 baseline["X1st.Flr.SF"] = x1st.sf
-baseline["MS.SubClass"] = ms.class
 baseline["X2nd.Flr.SF"] = x2nd.sf
-baseline["Bsmt.Qual"] = bsmt.qual
-baseline["BsmtFin.Type.1"] = basement
-baseline["MS.Zoning"] = zone
-baseline["Fireplaces"] = fire
+baseline["Bsmt.Qual"] = as.double(bsmt.qual)
+#baseline["BsmtFin.Type.1"] = basement.fin
+baseline["Fireplaces"] = as.double(fire)
 baseline["Fireplace.Qu"] = fire.qual
-baseline["Full.Bath"] = full.bath
-baseline["Half.Bath"] = half.bath
+baseline["Full.Bath"] = as.double(full.bath)
+baseline["Half.Bath"] = as.double(half.bath)
 baseline["Central.Air"] = ac
-baseline["Kitchen.Qual"] = ktchn.qual
+baseline["Kitchen.Qual"] = as.double(ktchn.qual)
 baseline["Neighborhood"] = neighborhood
-baseline["Garage.Cars"] = garage
+baseline["Garage.Cars"] = as.double(garage)
 baseline["Garage.Type"] = garage.type
 baseline["Garage.Area"] = garage.area
 baseline["Utilities"] = utilities
 baseline["Lot.Area"] = lot.area
-
-baseline %>%
-  mutate(BsmtFin.Type.1 = factor(BsmtFin.Type.1, levels = c("GLQ", "ALQ", "BLQ", "Rec", "LwQ", "Unf", "None"))) %>%
-  mutate(MS.Zoning = factor(MS.Zoning, levels = c("RL","RH","FV","RM","C (all)","I (all)","A (agr)"), ordered = FALSE)) %>%
-  mutate(MS.SubClass = recode_factor(MS.SubClass, 
-                                     '20' = "1-STORY 1946N",
-                                     '30' = "1-STORY 1945O",
-                                     '40' = "1-STORY UF.ATTIC.A",
-                                     '45' = "1.5 STORY UF.A",
-                                     '50' = "1.5-STORY F.ATTIC.A",
-                                     '60' = "2-STORY 1946N",
-                                     '70' = "2-STORY 1945O",
-                                     '75' = "2.5-STORY A",
-                                     '80' = "MULTILVL",
-                                     '85' = "SPLIT FOYER",
-                                     '90' = "DUPLEX.A",
-                                     '120' = "1-STORY-PUD 1946N",
-                                     '150' = "1.5-STORY-PUD.A",
-                                     '160' = "2-STORY-PUD 1946N",
-                                     '180' = "PUD-MULTILVL",
-                                     '190' = "2 FAM CONV.A"))
 
 renovated <- baseline
 
@@ -1795,48 +1611,53 @@ renovated["Kitchen.Qual"] = ktchn.qual.upgrd
 renovated["Half.Bath"] = half.bath + half.bath.upgrd
 renovated["Full.Bath"] = full.bath + full.bath.upgrd
 
+na.fail(baseline)
+print("baseline passed")
+na.fail(renovated)
+
+calcRenoValGAM(baseline,renovated)
+list(baseline = baseline, renovated = renovated)
+}
+
+```
 
 
-#Calculate baseline predicted home value per user input
-gam.baseline.pred <- predict(gam.fit, newdata = baseline)
+```{r}
+calcRenoValRF <- function(origHouse, remodeledHouse){
+  
+  origHomeVal <- predict(rf, origHouse)
+  remHomeVal <- predict(rf, remodeledHouse)
+  
+  value.delta <- remHomeVal- origHomeVal
+  percent.increase <- value.delta/origHomeVal
+  message <- paste("The changes you have proposed to make in your home upgrade have increased it's value by $", value.delta, "which is a", percent.increase,"% increase in value")
+  print (message)
+}
 
-#Calculate predicted upgraded home value per user input
-gam.upgrade.pred <- predict(gam.fit, newdata = renovated)
+calcRenoValGAM <- function(origHouse, remodeledHouse){
+  origHomeVal <- predict(gam.fit, origHouse)
+  remHomeVal <- predict(gam.fit, remodeledHouse)
+  
+  value.delta <- remHomeVal- origHomeVal
+  percent.increase <- value.delta/origHomeVal
+  message <- paste("The changes you have proposed to make in your home upgrade have increased it's value by $", value.delta, "which is a", percent.increase,"% increase in value")
+  print (message)
 
-#Calculate House Value Delta
-value.delta <- gam.upgrade.pred - gam.baseline.pred
 
-percent.increase <- value.delta/gam.baseline.pred
-
-message <- paste("The changes you have proposed to make in your home upgrade have increased it's value by $", value.delta, "which is a", percent.increase,"% increase in value")
-
-return.list <- list(gam.baseline.pred, gam.upgrade.pred, message)
-
-return(return.list)
 }
 ```
 
 
 ```{r}
-#Lets test with some 2010 data
-predict()
-
-```{r}
-test.house <- info.ingest()
-```
+#Lets
+info.ingest()
 
 ```
 
 
-```{r}
-#Generate baseline dataframe from information per user input
-home.baseline <-info.ingest()
-#Generate upgrade information from user input
-home.upgrade <- process.baseline(home.baseline)
 
 
 
 
-```
 
 
